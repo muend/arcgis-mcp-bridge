@@ -23,30 +23,13 @@ zero import weight to Layer A.
 
 from __future__ import annotations
 
-from contextlib import contextmanager
-from typing import Any, Iterator
+from typing import Any
 
 from ..contracts import raster_ops as c
 from ..registry import Category, ToolSpec, register
+from ._licensing import ExtensionLicenseError, extension as _extension
 
-
-class ExtensionLicenseError(ValueError):
-    """Required Esri extension license is not available on this machine."""
-
-
-@contextmanager
-def _extension(arcpy: Any, name: str) -> Iterator[None]:
-    """Checkout/checkin guard for licensed extensions ('Spatial', '3D')."""
-    if arcpy.CheckExtension(name) != "Available":
-        raise ExtensionLicenseError(
-            f"The {name} Analyst extension license is not available. "
-            "Enable it in ArcGIS Pro (Settings > Licensing) and retry."
-        )
-    arcpy.CheckOutExtension(name)
-    try:
-        yield
-    finally:
-        arcpy.CheckInExtension(name)  # never leave the seat locked
+__all__ = ["ExtensionLicenseError", "_extension"]  # back-compat re-export
 
 
 def _save(result_raster: Any, out_path: str) -> dict[str, Any]:
@@ -304,8 +287,7 @@ _SPECS = (
     ),
     (
         "contour_lines",
-        "Vector elevation isolines from a DEM (sa.Contour). "
-        "Requires Spatial Analyst.",
+        "Vector elevation isolines from a DEM (sa.Contour). Requires Spatial Analyst.",
         c.ContourLinesInput,
         _contour_lines,
     ),

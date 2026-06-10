@@ -99,8 +99,7 @@ class Settings:
         arcpy_python = Path(_require_env("ARCPY_PYTHON_PATH")).expanduser()
         if not arcpy_python.is_file():
             raise ConfigError(
-                f"ARCPY_PYTHON_PATH does not point to an existing file: "
-                f"{arcpy_python}"
+                f"ARCPY_PYTHON_PATH does not point to an existing file: {arcpy_python}"
             )
 
         raw_roots = _require_env("ARCGIS_MCP_ALLOWED_ROOTS")

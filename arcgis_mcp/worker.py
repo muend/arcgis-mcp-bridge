@@ -269,8 +269,7 @@ def _handle_run_tool(payload: dict[str, Any], guard: PathGuard) -> dict[str, Any
     # delete must be rejected in milliseconds, not after a 30 s license spin-up.
     if spec.destructive and not getattr(inp, "confirm", False):
         raise PermissionError(
-            f"{name} is destructive or mutates its input: "
-            "set confirm=true to proceed."
+            f"{name} is destructive or mutates its input: set confirm=true to proceed."
         )
 
     arcpy = _get_arcpy()

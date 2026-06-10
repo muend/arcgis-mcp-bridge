@@ -14,7 +14,7 @@ readme = "README.md"
 # Floor is 3.11 (the ArcPy/Layer B interpreter); Layer A may run newer (3.13).
 # Source must therefore stay compatible with 3.11 — Ruff enforces py311 below.
 requires-python = ">=3.11"
-license = { text = "Proprietary" }
+license = { text = "Apache-2.0" }
 authors = [{ name = "muend" }]
 dependencies = [
     "fastmcp",
@@ -60,6 +60,8 @@ ignore = [
 # noqa codes from rule families we deliberately do NOT enable (they document
 # intent for human reviewers); prevents RUF100 false positives.
 external = ["PLC", "BLE", "ANN", "A"]
+# Turkish comments are first-class citizens in this repo.
+allowed-confusables = ["ı", "İ"]
 
 [tool.ruff.lint.per-file-ignores]
 # Category modules import sibling contracts as `c` for registration density;

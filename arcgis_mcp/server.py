@@ -35,7 +35,7 @@ from typing import Any, Final, Optional
 try:  # official SDK packaging
     from mcp.server.fastmcp import FastMCP
 except ImportError:  # standalone fastmcp 2.x packaging
-    from fastmcp import FastMCP
+    from fastmcp import FastMCP  # type: ignore[no-redef]
 
 from pydantic import ValidationError
 

@@ -14,11 +14,11 @@ from __future__ import annotations
 from ..registry import all_specs, count
 from . import (
     data_mgmt,
-    editing,
+    editing_topology,  # Güncellendi: Eski 'editing' yerine yeni topoloji modülü bağlandı
     export_layout,
     geometry,
     map_mgmt,
-    network,
+    network_analysis,  # Güncellendi: Eski 'network' yerine yeni analiz modülü bağlandı
     projection,
     raster_ops,
     spatial_stats,

@@ -252,8 +252,7 @@ _SPECS: tuple[tuple[str, str, type, Any, bool], ...] = (
     ),
     (
         "calculate_field",
-        "Compute field values with a PYTHON3/ARCADE/SQL expression "
-        "(CalculateField).",
+        "Compute field values with a PYTHON3/ARCADE/SQL expression (CalculateField).",
         c.CalculateFieldInput,
         _calculate_field,
         False,
@@ -351,8 +350,7 @@ _SPECS: tuple[tuple[str, str, type, Any, bool], ...] = (
     ),
     (
         "calculate_geometry",
-        "Write area/length/centroid values into a field "
-        "(CalculateGeometryAttributes).",
+        "Write area/length/centroid values into a field (CalculateGeometryAttributes).",
         c.CalculateGeometryInput,
         _calculate_geometry,
         False,

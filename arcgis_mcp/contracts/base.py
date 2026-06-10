@@ -196,8 +196,7 @@ class ExecuteSpatialToolInput(BaseModel):
         unknown = provided - spec.required - spec.optional
         if missing:
             raise ValueError(
-                f"{self.tool.value}: missing required parameter(s): "
-                f"{sorted(missing)}"
+                f"{self.tool.value}: missing required parameter(s): {sorted(missing)}"
             )
         if unknown:
             raise ValueError(
