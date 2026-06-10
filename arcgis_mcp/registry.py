@@ -38,6 +38,7 @@ class Category(str, enum.Enum):
     EDITING = "editing_topology"
     NETWORK = "network_analysis"
     SPATIAL_STATS = "spatial_statistics"
+    VISION = "vision_analytics"
 
 
 #: Worker-side implementation signature: (arcpy module, validated input) ->

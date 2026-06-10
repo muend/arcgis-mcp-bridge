@@ -21,6 +21,7 @@ from . import (  # noqa: F401 — imports ARE the registrations
     editing,
     network,
     spatial_stats,
+    vision_analytics,
 )
 
 from ..registry import all_specs, count  # noqa: F401 — convenience re-export
