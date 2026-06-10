@@ -8,7 +8,7 @@ engine to Claude Desktop and other MCP hosts over stdio JSON-RPC.
 | | |
 |---|---|
 | Catalog | 100 tools · 10 verticals |
-| Tests | 6/6 passing · arcpy fully mocked |
+| Tests | 6 registry/security smoke tests · 6/6 passing · arcpy mocked |
 | Static analysis | Ruff clean · Mypy `strict` clean |
 | Transport | JSON-RPC 2.0 over stdio |
 | License | Apache-2.0 |
@@ -91,6 +91,12 @@ near_analysis          remove_layer_from_map  repair_geometry
 
 ## 03 — Automated Quality Gate & Testing
 
+**Scope, stated plainly:** the automated gate currently consists of
+**6 core registry and filesystem security smoke tests**. It validates the
+catalog's structural contracts and the PathGuard boundary — it does not
+claim multi-scenario validation of the 100 geoprocessing tools themselves,
+which execute against a licensed ArcGIS runtime that no CI runner has.
+
 **In-memory test architecture.** `tests/conftest.py` injects `MagicMock`
 proxies into `sys.modules["arcpy"]` and `sys.modules["arcpy.sa"]` (with
 `CheckExtension` answering `"Available"`) before any package import
@@ -145,9 +151,14 @@ Layer B re-validates because it never trusts its parent.
 Two boundary controls:
 
 - `validate_read(raw: str)` — fully resolves the path (symlinks, `..`,
-  relative segments collapsed *before* any comparison), requires
-  containment inside a configured `allowed_roots` directory, and requires
-  existence.
+  relative segments collapsed *before* any comparison) and requires
+  containment inside a configured `allowed_roots` directory. Existence is
+  enforced via a **deepest-existing-prefix** resolution strategy: the
+  targeted path or its filesystem-resolvable geodatabase prefix must
+  exist. This is what makes GDB-internal datasets
+  (`…\city.gdb\roads`) first-class — the `.gdb` container is validated on
+  the filesystem, while the logical tail is constrained to plain dataset
+  names only arcpy can resolve.
 - `validate_write(raw: str, *, overwrite: bool)` — same resolution and
   containment, plus ArcGIS-legal dataset naming and the overwrite
   discipline: an existing target is never replaced unless the request
@@ -156,10 +167,7 @@ Two boundary controls:
 Any escape pattern — traversal sequences, UNC shares, NUL bytes, reserved
 device names, out-of-root targets — raises `PathSecurityError`
 immediately: the request is answered with a structured `security` frame
-and no subprocess is ever orchestrated for it. GDB-internal references
-(`…\city.gdb\roads`) are supported by validating the deepest
-filesystem-resolvable prefix and constraining the logical tail to plain
-dataset names that cannot smuggle traversal.
+and no subprocess is ever orchestrated for it.
 
 ---
 
@@ -175,14 +183,23 @@ python setup_env.py            # idempotent: clones arcgispro-py3 -> arcgis-mcp-
 `--dry-run`; set `ARCGIS_CONDA_EXE` if conda is not on `PATH`. It emits a
 JSON report whose `python_exe` value becomes `ARCPY_PYTHON_PATH`.
 
-Install the server stack into the bridge environment
-(`pip install "pydantic>=2.5" mcp`) and, for the vision pipeline, the CV
-stack into the worker environment
-(`pip install opencv-python-headless numpy`).
+**Worker integrity — `ARCPY_PYTHON_PATH` must resolve the package stack.**
+Layer B is launched as `-m arcgis_mcp.worker`, so its interpreter must
+resolve the worker's runtime requirements — Pydantic above all (the IPC
+contracts are re-validated inside Layer B). The pristine `arcgispro-py3`
+environment does not ship Pydantic and is read-only, so it cannot acquire
+it. **Recommended configuration: point both the server `command` and
+`ARCPY_PYTHON_PATH` at the same cloned `arcgis-mcp-env`** — one
+environment, one dependency set, no context drift, no missing-package
+failures at job time.
+
+Install the full stack into that environment
+(`pip install "pydantic>=2.5" mcp` and, for the vision pipeline,
+`pip install opencv-python-headless numpy`).
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `ARCPY_PYTHON_PATH` | yes | Layer B licensed interpreter |
+| `ARCPY_PYTHON_PATH` | yes | Layer B interpreter: licensed arcpy **and** Pydantic resolvable (use `arcgis-mcp-env`) |
 | `ARCGIS_MCP_ALLOWED_ROOTS` | yes | `;`-separated PathGuard boundary roots |
 | `ARCGIS_MCP_SCRATCH_GDB` | no | Default output workspace |
 | `ARCGIS_MCP_LOG_FILE` / `_LOG_LEVEL` / `_TOOL_TIMEOUT` | no | Logging + per-job ceiling |
@@ -195,7 +212,7 @@ stack into the worker environment
       "args": ["-m", "arcgis_mcp.server"],
       "env": {
         "PYTHONPATH": "C:\\path\\to\\arcgis-mcp-bridge",
-        "ARCPY_PYTHON_PATH": "C:\\...\\envs\\arcgispro-py3\\python.exe",
+        "ARCPY_PYTHON_PATH": "C:\\...\\envs\\arcgis-mcp-env\\python.exe",
         "ARCGIS_MCP_ALLOWED_ROOTS": "C:\\Users\\you\\GIS-Projects"
       }
     }

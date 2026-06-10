@@ -24,7 +24,7 @@ dependencies = [
 [project.optional-dependencies]
 # Vision stack is only needed by the Layer B worker for extract_sketch_to_gis.
 vision = ["opencv-python-headless", "numpy"]
-dev = ["ruff", "mypy"]
+dev = ["ruff", "mypy", "pytest", "pytest-cov"]
 
 [project.urls]
 Repository = "https://github.com/muend/arcgis-mcp-bridge"

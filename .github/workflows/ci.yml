@@ -1,0 +1,73 @@
+# ---------------------------------------------------------------------------
+# arcgis-mcp-bridge — automated quality gate
+#
+# Mirrors the local `make verify-all` + pytest discipline exactly. arcpy is
+# never available on hosted runners: tests/conftest.py injects MagicMock
+# proxies into sys.modules, so the full suite runs license-free.
+#
+# Note: the type gate is `mypy arcgis_mcp` (the canonical target from
+# pyproject `files`/Makefile) rather than `mypy .` — pointing mypy at the
+# repository root changes module-identity resolution, which breaks the
+# per-module override matching and double-scans non-package artifacts.
+# ---------------------------------------------------------------------------
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality-gate:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Type-check (mypy strict)
+        run: mypy arcgis_mcp
+
+      - name: Test suite (pytest)
+        run: pytest -v
+
+      - name: Security audit (registry path roles + confirm gates)
+        shell: python {0}
+        run: |
+          import arcgis_mcp.tools  # noqa: F401 — populates the registry
+          from arcgis_mcp.registry import all_specs, count
+
+          bad = [
+              (s.name, f)
+              for s in all_specs()
+              for f, r in s.input_model.path_fields.items()
+              if f not in s.input_model.model_fields
+              or r not in ("read", "write", "read_list")
+          ]
+          no_gate = [
+              s.name
+              for s in all_specs()
+              if s.destructive and "confirm" not in s.input_model.model_fields
+          ]
+          assert not bad and not no_gate, (bad, no_gate)
+          print(f"security-audit OK: {count()} specs")
