@@ -96,9 +96,7 @@ class PathGuard:
         resolved, tail = self._resolve(raw)
         self._assert_contained(resolved)
         if not resolved.exists():
-            raise PathSecurityError(
-                f"Input path does not exist on disk: {resolved}"
-            )
+            raise PathSecurityError(f"Input path does not exist on disk: {resolved}")
         return self._rejoin(resolved, tail)
 
     def validate_write(
@@ -169,9 +167,7 @@ class PathGuard:
         for component in path.parts:
             stem = component.split(".")[0].upper()
             if stem in _RESERVED_COMPONENTS:
-                raise PathSecurityError(
-                    f"Reserved device name in path: {component!r}"
-                )
+                raise PathSecurityError(f"Reserved device name in path: {component!r}")
 
         # Walk upward to find the deepest existing prefix.
         tail: list[str] = []

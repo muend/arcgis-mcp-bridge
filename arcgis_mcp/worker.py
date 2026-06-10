@@ -38,6 +38,9 @@ from typing import Any, Callable, Final, TextIO
 
 from pydantic import ValidationError
 
+# Importing the tools package populates the registry (each category module
+# registers its ToolSpecs at import time). arcpy is NOT imported by this.
+from . import tools as _catalog  # noqa: F401
 from .contracts import (
     ExecuteSpatialToolInput,
     ExecuteSpatialToolOutput,
@@ -49,13 +52,8 @@ from .contracts import (
     WorkerJob,
     WorkerResult,
 )
-from .registry import apply_path_guard
-from .registry import get as registry_get
+from .registry import apply_path_guard, get as registry_get
 from .security import PathGuard, PathSecurityError
-
-# Importing the tools package populates the registry (each category module
-# registers its ToolSpecs at import time). arcpy is NOT imported by this.
-from . import tools as _catalog  # noqa: F401, E402
 
 LOG: Final[logging.Logger] = logging.getLogger("arcgis_mcp.worker")
 
@@ -93,12 +91,13 @@ def _get_arcpy() -> ModuleType:
         raise LicenseUnavailableError(f"ArcGIS license unavailable: {exc}") from exc
     LOG.info("arcpy ready in %.1f s", time.perf_counter() - t0)
     _arcpy_module = arcpy
-    return arcpy
+    return _arcpy_module  # via the ModuleType-typed global: no Any escapes
 
 
 # --------------------------------------------------------------------------- #
 # Legacy Stage 2 tool adapters (Buffer/Clip gateway)
 # --------------------------------------------------------------------------- #
+
 
 def _adapt_buffer(
     arcpy: ModuleType, inp: ExecuteSpatialToolInput, out_path: str
@@ -115,9 +114,7 @@ def _adapt_buffer(
     )
 
 
-def _adapt_clip(
-    arcpy: ModuleType, inp: ExecuteSpatialToolInput, out_path: str
-) -> None:
+def _adapt_clip(arcpy: ModuleType, inp: ExecuteSpatialToolInput, out_path: str) -> None:
     p = inp.parameters
     arcpy.analysis.Clip(
         in_features=inp.in_features,
@@ -138,6 +135,7 @@ _TOOL_ADAPTERS: Final[
 # --------------------------------------------------------------------------- #
 # Operation handlers
 # --------------------------------------------------------------------------- #
+
 
 def _handle_ping(_: dict[str, Any], __: PathGuard) -> dict[str, Any]:
     """Liveness probe: confirms IPC + interpreter without touching arcpy."""
@@ -167,10 +165,11 @@ def _handle_list_layers(payload: dict[str, Any], guard: PathGuard) -> dict[str, 
         return LayerInfo(
             name=name,
             data_type="FeatureClass",
-            geometry_type=desc.shapeType,          # validated by Literal
+            geometry_type=desc.shapeType,  # validated by Literal
             spatial_reference=(
-                f"EPSG:{sr.factoryCode}" if sr and sr.factoryCode else
-                (sr.name if sr else None)
+                f"EPSG:{sr.factoryCode}"
+                if sr and sr.factoryCode
+                else (sr.name if sr else None)
             ),
             feature_count=count,
         )
@@ -182,9 +181,7 @@ def _handle_list_layers(payload: dict[str, Any], guard: PathGuard) -> dict[str, 
             count = int(arcpy.management.GetCount(tbl)[0])
         except Exception:  # noqa: BLE001
             count = None
-        layers.append(
-            LayerInfo(name=tbl, data_type="Table", feature_count=count)
-        )
+        layers.append(LayerInfo(name=tbl, data_type="Table", feature_count=count))
     for ras in arcpy.ListRasters(wildcard) or []:
         layers.append(LayerInfo(name=ras, data_type="RasterDataset"))
 
@@ -293,9 +290,7 @@ def _handle_run_tool(payload: dict[str, Any], guard: PathGuard) -> dict[str, Any
     return result
 
 
-_HANDLERS: Final[
-    dict[str, Callable[[dict[str, Any], PathGuard], dict[str, Any]]]
-] = {
+_HANDLERS: Final[dict[str, Callable[[dict[str, Any], PathGuard], dict[str, Any]]]] = {
     "ping": _handle_ping,
     "list_layers": _handle_list_layers,
     "execute_spatial_tool": _handle_execute_spatial_tool,
@@ -307,13 +302,14 @@ _HANDLERS: Final[
 # Frame processing & entrypoint
 # --------------------------------------------------------------------------- #
 
-def _error_result(job_id: str, kind: str, message: str,
-                  gp_messages: tuple[str, ...] = ()) -> WorkerResult:
+
+def _error_result(
+    job_id: str, kind: str, message: str, gp_messages: tuple[str, ...] = ()
+) -> WorkerResult:
     return WorkerResult(
         job_id=job_id,
         ok=False,
-        error=WorkerError(kind=kind, message=message,  # type: ignore[arg-type]
-                          gp_messages=gp_messages),
+        error=WorkerError(kind=kind, message=message, gp_messages=gp_messages),
     )
 
 
@@ -351,7 +347,8 @@ def process_frame(raw_line: str, guard: PathGuard) -> WorkerResult:
     except Exception as exc:  # noqa: BLE001 — final boundary: nothing escapes
         LOG.exception("job %s: unhandled worker exception", job.job_id)
         return _error_result(
-            job.job_id, "internal",
+            job.job_id,
+            "internal",
             f"Unexpected worker error ({type(exc).__name__}); see server logs.",
         )
 

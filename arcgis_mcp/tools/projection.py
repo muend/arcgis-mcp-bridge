@@ -31,7 +31,7 @@ def _sr_info(sr: Any) -> dict[str, Any]:
     return {
         "factory_code": int(sr.factoryCode),
         "name": sr.name,
-        "type": sr.type,                       # 'Projected' | 'Geographic'
+        "type": sr.type,  # 'Projected' | 'Geographic'
         "linear_unit": getattr(sr, "linearUnitName", None) or None,
         "angular_unit": getattr(sr, "angularUnitName", None) or None,
         "datum": getattr(sr, "datumName", None) or None,
@@ -40,11 +40,15 @@ def _sr_info(sr: Any) -> dict[str, Any]:
 
 # ------------------------------------------------------------------- tools --
 
+
 def _define_projection(arcpy: Any, inp: c.DefineProjectionInput) -> dict:
     sr = _sr(arcpy, inp.wkid)
     arcpy.management.DefineProjection(inp.dataset, sr)
-    return {"dataset": inp.dataset, "defined": _sr_info(sr),
-            "note": "Metadata-only operation: coordinates were NOT transformed."}
+    return {
+        "dataset": inp.dataset,
+        "defined": _sr_info(sr),
+        "note": "Metadata-only operation: coordinates were NOT transformed.",
+    }
 
 
 def _project_features(arcpy: Any, inp: c.ProjectFeaturesInput) -> dict:
@@ -55,8 +59,11 @@ def _project_features(arcpy: Any, inp: c.ProjectFeaturesInput) -> dict:
         out_coor_system=sr,
         transform_method=inp.transform_method,
     )
-    return {"output": inp.out_features, "crs": _sr_info(sr),
-            "transform_method": inp.transform_method}
+    return {
+        "output": inp.out_features,
+        "crs": _sr_info(sr),
+        "transform_method": inp.transform_method,
+    }
 
 
 def _get_spatial_reference(arcpy: Any, inp: c.GetSpatialReferenceInput) -> dict:
@@ -72,29 +79,53 @@ def _project_raster(arcpy: Any, inp: c.ProjectRasterInput) -> dict:
         resampling_type=inp.resampling_type,
         cell_size=inp.cell_size,
     )
-    return {"output": inp.out_raster, "crs": _sr_info(sr),
-            "resampling_type": inp.resampling_type}
+    return {
+        "output": inp.out_raster,
+        "crs": _sr_info(sr),
+        "resampling_type": inp.resampling_type,
+    }
 
 
 # -------------------------------------------------------------- registrations
 
 _CAT = Category.PROJECTION
 
-register(ToolSpec(
-    "define_projection", _CAT,
-    "Assign a CRS (by WKID/EPSG) to a dataset with an unknown spatial "
-    "reference (DefineProjection). Metadata-only; requires confirm=true.",
-    c.DefineProjectionInput, _define_projection, destructive=True))
-register(ToolSpec(
-    "project_features", _CAT,
-    "Transform a vector dataset into another CRS/datum (Project).",
-    c.ProjectFeaturesInput, _project_features))
-register(ToolSpec(
-    "get_spatial_reference", _CAT,
-    "Look up a CRS by WKID: name, type, linear/angular units, datum.",
-    c.GetSpatialReferenceInput, _get_spatial_reference))
-register(ToolSpec(
-    "project_raster", _CAT,
-    "Reproject a raster with NEAREST/BILINEAR/CUBIC/MAJORITY resampling "
-    "(ProjectRaster).",
-    c.ProjectRasterInput, _project_raster))
+register(
+    ToolSpec(
+        "define_projection",
+        _CAT,
+        "Assign a CRS (by WKID/EPSG) to a dataset with an unknown spatial "
+        "reference (DefineProjection). Metadata-only; requires confirm=true.",
+        c.DefineProjectionInput,
+        _define_projection,
+        destructive=True,
+    )
+)
+register(
+    ToolSpec(
+        "project_features",
+        _CAT,
+        "Transform a vector dataset into another CRS/datum (Project).",
+        c.ProjectFeaturesInput,
+        _project_features,
+    )
+)
+register(
+    ToolSpec(
+        "get_spatial_reference",
+        _CAT,
+        "Look up a CRS by WKID: name, type, linear/angular units, datum.",
+        c.GetSpatialReferenceInput,
+        _get_spatial_reference,
+    )
+)
+register(
+    ToolSpec(
+        "project_raster",
+        _CAT,
+        "Reproject a raster with NEAREST/BILINEAR/CUBIC/MAJORITY resampling "
+        "(ProjectRaster).",
+        c.ProjectRasterInput,
+        _project_raster,
+    )
+)

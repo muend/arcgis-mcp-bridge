@@ -11,7 +11,8 @@ module->package conversion (Open/Closed: extension without breakage).
 
 from __future__ import annotations
 
-from .base import (  # noqa: F401 — deliberate re-export surface
+from .base import (
+    TOOL_PARAMETER_SPECS,
     DataType,
     ExecuteSpatialToolInput,
     ExecuteSpatialToolOutput,
@@ -22,7 +23,6 @@ from .base import (  # noqa: F401 — deliberate re-export surface
     ParameterScalar,
     PathRole,
     SpatialToolName,
-    TOOL_PARAMETER_SPECS,
     ToolInput,
     WorkerError,
     WorkerJob,
@@ -31,6 +31,7 @@ from .base import (  # noqa: F401 — deliberate re-export surface
 )
 
 __all__ = [
+    "TOOL_PARAMETER_SPECS",
     "DataType",
     "ExecuteSpatialToolInput",
     "ExecuteSpatialToolOutput",
@@ -41,7 +42,6 @@ __all__ = [
     "ParameterScalar",
     "PathRole",
     "SpatialToolName",
-    "TOOL_PARAMETER_SPECS",
     "ToolInput",
     "WorkerError",
     "WorkerJob",

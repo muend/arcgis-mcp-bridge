@@ -11,12 +11,27 @@ from .base import PathRole, ToolInput
 from .projection import RasterResampling  # shared Literal — single definition
 
 ZonalStatType = Literal[
-    "MEAN", "SUM", "MIN", "MAX", "RANGE", "STD", "MEDIAN",
-    "MAJORITY", "MINORITY", "VARIETY", "ALL",
+    "MEAN",
+    "SUM",
+    "MIN",
+    "MAX",
+    "RANGE",
+    "STD",
+    "MEDIAN",
+    "MAJORITY",
+    "MINORITY",
+    "VARIETY",
+    "ALL",
 ]
 PixelType = Literal[
-    "1_BIT", "8_BIT_UNSIGNED", "8_BIT_SIGNED", "16_BIT_UNSIGNED",
-    "16_BIT_SIGNED", "32_BIT_UNSIGNED", "32_BIT_SIGNED", "32_BIT_FLOAT",
+    "1_BIT",
+    "8_BIT_UNSIGNED",
+    "8_BIT_SIGNED",
+    "16_BIT_UNSIGNED",
+    "16_BIT_SIGNED",
+    "32_BIT_UNSIGNED",
+    "32_BIT_SIGNED",
+    "32_BIT_FLOAT",
     "64_BIT",
 ]
 MosaicMethod = Literal["FIRST", "LAST", "BLEND", "MEAN", "MINIMUM", "MAXIMUM"]
@@ -40,9 +55,10 @@ class DemDerivative(RasterInOut):
     """Shared base: DEM-derived surfaces with a vertical exaggeration factor."""
 
     z_factor: float = Field(
-        default=1.0, gt=0,
+        default=1.0,
+        gt=0,
         description="Vertical unit conversion (e.g. 0.3048 if Z is in feet "
-                    "and XY in meters).",
+        "and XY in meters).",
     )
 
 
@@ -100,8 +116,12 @@ class ResampleRasterInput(RasterInOut):
 class MosaicToNewRasterInput(ToolInput):
     rasters: List[str] = Field(..., min_length=2, max_length=50)
     output_location: str = Field(..., description="Existing folder or GDB.")
-    raster_name: str = Field(..., min_length=1, max_length=128,
-                             description="Output name (with .tif etc. if folder).")
+    raster_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=128,
+        description="Output name (with .tif etc. if folder).",
+    )
     number_of_bands: int = Field(..., ge=1, le=400)
     pixel_type: PixelType = "32_BIT_FLOAT"
     mosaic_method: MosaicMethod = "LAST"
@@ -128,9 +148,9 @@ class PolygonToRasterInput(ToolInput):
     in_features: str
     value_field: str = Field(..., min_length=1, max_length=64)
     out_raster: str
-    cell_assignment: Literal[
-        "CELL_CENTER", "MAXIMUM_AREA", "MAXIMUM_COMBINED_AREA"
-    ] = "CELL_CENTER"
+    cell_assignment: Literal["CELL_CENTER", "MAXIMUM_AREA", "MAXIMUM_COMBINED_AREA"] = (
+        "CELL_CENTER"
+    )
     cell_size: float = Field(..., gt=0)
     overwrite: bool = False
     path_fields: ClassVar[dict[str, PathRole]] = {
@@ -212,7 +232,8 @@ class FlowDirectionInput(RasterInOut):
 
 class FillSinksInput(RasterInOut):
     z_limit: Optional[float] = Field(
-        default=None, gt=0,
+        default=None,
+        gt=0,
         description="Max sink depth to fill; None fills all sinks.",
     )
 
@@ -225,9 +246,11 @@ class ClipRasterInput(RasterInOut):
     xmax: Optional[float] = None
     ymax: Optional[float] = None
     template_dataset: Optional[str] = Field(
-        default=None, description="FC/raster whose extent (or geometry) clips.")
+        default=None, description="FC/raster whose extent (or geometry) clips."
+    )
     use_clipping_geometry: bool = Field(
-        default=False, description="Clip to template polygon geometry, not extent.")
+        default=False, description="Clip to template polygon geometry, not extent."
+    )
     nodata_value: Optional[str] = None
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_raster": "read",
@@ -237,27 +260,43 @@ class ClipRasterInput(RasterInOut):
 
     @model_validator(mode="after")
     def _rectangle_or_template(self) -> "ClipRasterInput":
-        coords = (self.xmin, self.ymin, self.xmax, self.ymax)
-        has_rect = all(v is not None for v in coords)
-        some_rect = any(v is not None for v in coords)
-        if some_rect and not has_rect:
+        # Explicit per-field narrowing (mypy cannot narrow through all()/any()).
+        if (
+            self.xmin is not None
+            and self.ymin is not None
+            and self.xmax is not None
+            and self.ymax is not None
+        ):
+            if not (self.xmax > self.xmin and self.ymax > self.ymin):
+                raise ValueError("Rectangle must satisfy xmax > xmin and ymax > ymin.")
+        elif any(v is not None for v in (self.xmin, self.ymin, self.xmax, self.ymax)):
             raise ValueError("Provide all four of xmin/ymin/xmax/ymax or none.")
-        if not has_rect and self.template_dataset is None:
+        elif self.template_dataset is None:
             raise ValueError("Provide a rectangle or a template_dataset.")
-        if has_rect and not (self.xmax > self.xmin and self.ymax > self.ymin):
-            raise ValueError("Rectangle must satisfy xmax > xmin and ymax > ymin.")
         if self.use_clipping_geometry and self.template_dataset is None:
             raise ValueError("use_clipping_geometry requires template_dataset.")
         return self
 
 
 __all__ = [
-    "ZonalStatType", "PixelType", "MosaicMethod",
-    "RasterInOut", "DemDerivative",
-    "ExtractByMaskInput", "RasterCalculatorInput", "ResampleRasterInput",
-    "MosaicToNewRasterInput", "RasterToPolygonInput", "PolygonToRasterInput",
-    "ZonalStatisticsInput", "ZonalStatisticsAsTableInput",
-    "SlopeAnalysisInput", "AspectAnalysisInput", "HillshadeInput",
-    "ContourLinesInput", "FlowDirectionInput", "FillSinksInput",
+    "AspectAnalysisInput",
     "ClipRasterInput",
+    "ContourLinesInput",
+    "DemDerivative",
+    "ExtractByMaskInput",
+    "FillSinksInput",
+    "FlowDirectionInput",
+    "HillshadeInput",
+    "MosaicMethod",
+    "MosaicToNewRasterInput",
+    "PixelType",
+    "PolygonToRasterInput",
+    "RasterCalculatorInput",
+    "RasterInOut",
+    "RasterToPolygonInput",
+    "ResampleRasterInput",
+    "SlopeAnalysisInput",
+    "ZonalStatType",
+    "ZonalStatisticsAsTableInput",
+    "ZonalStatisticsInput",
 ]

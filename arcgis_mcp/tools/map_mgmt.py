@@ -13,8 +13,8 @@ from typing import Any
 from ..contracts import map_mgmt as c
 from ..registry import Category, ToolSpec, register
 
-
 # ---------------------------------------------------------------- helpers --
+
 
 class MapTargetError(LookupError):
     """Map or layer named in the request does not exist in the project."""
@@ -43,6 +43,7 @@ def _finish(aprx: Any, save: bool, **extra: Any) -> dict[str, Any]:
 
 
 # ------------------------------------------------------------------- tools --
+
 
 def _add_layer_to_map(arcpy: Any, inp: c.AddLayerToMapInput) -> dict[str, Any]:
     aprx, m = _open_map(arcpy, inp.aprx_path, inp.map_name)
@@ -83,9 +84,7 @@ def _list_layers_in_map(arcpy: Any, inp: c.ListLayersInMapInput) -> dict[str, An
     }
 
 
-def _set_layer_visibility(
-    arcpy: Any, inp: c.SetLayerVisibilityInput
-) -> dict[str, Any]:
+def _set_layer_visibility(arcpy: Any, inp: c.SetLayerVisibilityInput) -> dict[str, Any]:
     aprx, m = _open_map(arcpy, inp.aprx_path, inp.map_name)
     lyr = _find_layer(m, inp.layer_name)
     lyr.visible = inp.visible
@@ -100,8 +99,10 @@ def _move_layer_order(arcpy: Any, inp: c.MoveLayerOrderInput) -> dict[str, Any]:
         inp.position,
     )
     return _finish(
-        aprx, inp.save,
-        moved=inp.layer_name, relative_to=inp.reference_layer,
+        aprx,
+        inp.save,
+        moved=inp.layer_name,
+        relative_to=inp.reference_layer,
         position=inp.position,
     )
 
@@ -122,16 +123,19 @@ def _zoom_to_layer(arcpy: Any, inp: c.ZoomToLayerInput) -> dict[str, Any]:
     cam.setExtent(extent)
     m.defaultCamera = cam
     return _finish(
-        aprx, inp.save,
+        aprx,
+        inp.save,
         layer=lyr.name,
-        extent={"xmin": extent.XMin, "ymin": extent.YMin,
-                "xmax": extent.XMax, "ymax": extent.YMax},
+        extent={
+            "xmin": extent.XMin,
+            "ymin": extent.YMin,
+            "xmax": extent.XMax,
+            "ymax": extent.YMax,
+        },
     )
 
 
-def _set_layer_symbology(
-    arcpy: Any, inp: c.SetLayerSymbologyInput
-) -> dict[str, Any]:
+def _set_layer_symbology(arcpy: Any, inp: c.SetLayerSymbologyInput) -> dict[str, Any]:
     aprx, m = _open_map(arcpy, inp.aprx_path, inp.map_name)
     lyr = _find_layer(m, inp.layer_name)
     arcpy.management.ApplySymbologyFromLayer(lyr, inp.lyrx_path)
@@ -148,45 +152,96 @@ def _save_project(arcpy: Any, inp: c.SaveProjectInput) -> dict[str, Any]:
 
 _CAT: Category = Category.MAP_MGMT
 
-register(ToolSpec(
-    "add_layer_to_map", _CAT,
-    "Add a dataset to a map inside an .aprx project (arcpy.mp addDataFromPath). "
-    "Operates on the saved project file, not a live Pro session.",
-    c.AddLayerToMapInput, _add_layer_to_map))
-register(ToolSpec(
-    "remove_layer_from_map", _CAT,
-    "Remove a layer from a map (map.removeLayer). Requires confirm=true.",
-    c.RemoveLayerFromMapInput, _remove_layer_from_map, destructive=True))
-register(ToolSpec(
-    "list_maps", _CAT,
-    "List all map names inside an .aprx project (aprx.listMaps).",
-    c.ListMapsInput, _list_maps))
-register(ToolSpec(
-    "list_layers_in_map", _CAT,
-    "List layers of one map with visibility, group flag and data source.",
-    c.ListLayersInMapInput, _list_layers_in_map))
-register(ToolSpec(
-    "set_layer_visibility", _CAT,
-    "Show or hide a layer (lyr.visible).",
-    c.SetLayerVisibilityInput, _set_layer_visibility))
-register(ToolSpec(
-    "move_layer_order", _CAT,
-    "Change draw order: move a layer BEFORE/AFTER a reference layer "
-    "(map.moveLayer).",
-    c.MoveLayerOrderInput, _move_layer_order))
-register(ToolSpec(
-    "rename_layer", _CAT,
-    "Rename a layer as shown in the Contents pane (lyr.name).",
-    c.RenameLayerInput, _rename_layer))
-register(ToolSpec(
-    "zoom_to_layer", _CAT,
-    "Set the map's default camera to a layer's extent.",
-    c.ZoomToLayerInput, _zoom_to_layer))
-register(ToolSpec(
-    "set_layer_symbology", _CAT,
-    "Apply symbology from a .lyrx file (ApplySymbologyFromLayer).",
-    c.SetLayerSymbologyInput, _set_layer_symbology))
-register(ToolSpec(
-    "save_project", _CAT,
-    "Save the .aprx project file (aprx.save).",
-    c.SaveProjectInput, _save_project))
+register(
+    ToolSpec(
+        "add_layer_to_map",
+        _CAT,
+        "Add a dataset to a map inside an .aprx project (arcpy.mp addDataFromPath). "
+        "Operates on the saved project file, not a live Pro session.",
+        c.AddLayerToMapInput,
+        _add_layer_to_map,
+    )
+)
+register(
+    ToolSpec(
+        "remove_layer_from_map",
+        _CAT,
+        "Remove a layer from a map (map.removeLayer). Requires confirm=true.",
+        c.RemoveLayerFromMapInput,
+        _remove_layer_from_map,
+        destructive=True,
+    )
+)
+register(
+    ToolSpec(
+        "list_maps",
+        _CAT,
+        "List all map names inside an .aprx project (aprx.listMaps).",
+        c.ListMapsInput,
+        _list_maps,
+    )
+)
+register(
+    ToolSpec(
+        "list_layers_in_map",
+        _CAT,
+        "List layers of one map with visibility, group flag and data source.",
+        c.ListLayersInMapInput,
+        _list_layers_in_map,
+    )
+)
+register(
+    ToolSpec(
+        "set_layer_visibility",
+        _CAT,
+        "Show or hide a layer (lyr.visible).",
+        c.SetLayerVisibilityInput,
+        _set_layer_visibility,
+    )
+)
+register(
+    ToolSpec(
+        "move_layer_order",
+        _CAT,
+        "Change draw order: move a layer BEFORE/AFTER a reference layer "
+        "(map.moveLayer).",
+        c.MoveLayerOrderInput,
+        _move_layer_order,
+    )
+)
+register(
+    ToolSpec(
+        "rename_layer",
+        _CAT,
+        "Rename a layer as shown in the Contents pane (lyr.name).",
+        c.RenameLayerInput,
+        _rename_layer,
+    )
+)
+register(
+    ToolSpec(
+        "zoom_to_layer",
+        _CAT,
+        "Set the map's default camera to a layer's extent.",
+        c.ZoomToLayerInput,
+        _zoom_to_layer,
+    )
+)
+register(
+    ToolSpec(
+        "set_layer_symbology",
+        _CAT,
+        "Apply symbology from a .lyrx file (ApplySymbologyFromLayer).",
+        c.SetLayerSymbologyInput,
+        _set_layer_symbology,
+    )
+)
+register(
+    ToolSpec(
+        "save_project",
+        _CAT,
+        "Save the .aprx project file (aprx.save).",
+        c.SaveProjectInput,
+        _save_project,
+    )
+)

@@ -24,8 +24,12 @@ class DefineProjectionInput(ToolInput):
     """
 
     dataset: str = Field(..., min_length=1)
-    wkid: int = Field(..., ge=_WKID_MIN, le=_WKID_MAX,
-                      description="EPSG/WKID, e.g. 5258 (TUREF) or 32635.")
+    wkid: int = Field(
+        ...,
+        ge=_WKID_MIN,
+        le=_WKID_MAX,
+        description="EPSG/WKID, e.g. 5258 (TUREF) or 32635.",
+    )
     confirm: bool = Field(
         default=False,
         description="Must be true: redefining a CRS rewrites dataset metadata.",
@@ -42,7 +46,7 @@ class ProjectFeaturesInput(ToolInput):
     transform_method: Optional[str] = Field(
         default=None,
         description="Named geographic transformation when datums differ, "
-                    "e.g. 'ITRF_2014_To_ETRF_2014'. None lets arcpy choose.",
+        "e.g. 'ITRF_2014_To_ETRF_2014'. None lets arcpy choose.",
         max_length=120,
     )
     overwrite: bool = False
@@ -68,7 +72,7 @@ class ProjectRasterInput(ToolInput):
     resampling_type: RasterResampling = Field(
         default="NEAREST",
         description="NEAREST for categorical rasters; BILINEAR/CUBIC for "
-                    "continuous surfaces (DEM, imagery).",
+        "continuous surfaces (DEM, imagery).",
     )
     cell_size: Optional[float] = Field(default=None, gt=0)
     overwrite: bool = False
@@ -80,8 +84,8 @@ class ProjectRasterInput(ToolInput):
 
 __all__ = [
     "DefineProjectionInput",
-    "ProjectFeaturesInput",
     "GetSpatialReferenceInput",
+    "ProjectFeaturesInput",
     "ProjectRasterInput",
     "RasterResampling",
 ]

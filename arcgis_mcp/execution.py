@@ -62,7 +62,7 @@ def _failure(job_id: str, kind: str, message: str) -> WorkerResult:
     return WorkerResult(
         job_id=job_id,
         ok=False,
-        error=WorkerError(kind=kind, message=message),  # type: ignore[arg-type]
+        error=WorkerError(kind=kind, message=message),
     )
 
 
@@ -114,8 +114,9 @@ class SubprocessBackend:
         try:
             proc = await asyncio.create_subprocess_exec(
                 str(self._python),
-                "-u",                      # unbuffered pipes: no half-written frames
-                "-m", "arcgis_mcp.worker",
+                "-u",  # unbuffered pipes: no half-written frames
+                "-m",
+                "arcgis_mcp.worker",
                 cwd=str(self._root),
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
@@ -149,7 +150,8 @@ class SubprocessBackend:
             # Native crash, license hard-failure, unhandled worker exception.
             LOG.error(
                 "job %s: worker exited %s (native crash boundary engaged)",
-                job.job_id, proc.returncode,
+                job.job_id,
+                proc.returncode,
             )
             return _failure(
                 job.job_id,
@@ -172,7 +174,8 @@ class SubprocessBackend:
         slipped through is ignored rather than fatal.
         """
         lines = [
-            ln for ln in stdout_b.decode("utf-8", errors="replace").splitlines()
+            ln
+            for ln in stdout_b.decode("utf-8", errors="replace").splitlines()
             if ln.strip()
         ]
         if not lines:

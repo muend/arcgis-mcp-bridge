@@ -50,18 +50,19 @@ _RANSAC_REPROJ_PX: Final[float] = 5.0
 #: HSV ink ranges as (lower, upper) bound pairs. Red wraps the hue circle,
 #: so it needs two bands. S/V floors reject the printed background, which
 #: is typically desaturated relative to fresh ink.
-_INK_HSV_RANGES: Final[dict[str, list[tuple[tuple[int, int, int], tuple[int, int, int]]]]] = {
-    "Red":   [((0, 70, 50), (10, 255, 255)),
-              ((170, 70, 50), (180, 255, 255))],
-    "Blue":  [((100, 70, 50), (130, 255, 255))],
-    "Black": [((0, 0, 0), (180, 255, 60))],   # low V = dark ink, any hue
+_INK_HSV_RANGES: Final[
+    dict[str, list[tuple[tuple[int, int, int], tuple[int, int, int]]]]
+] = {
+    "Red": [((0, 70, 50), (10, 255, 255)), ((170, 70, 50), (180, 255, 255))],
+    "Blue": [((100, 70, 50), (130, 255, 255))],
+    "Black": [((0, 0, 0), (180, 255, 60))],  # low V = dark ink, any hue
 }
 
 
 def _lazy_cv() -> tuple[Any, Any]:
     """Import cv2/numpy inside Layer B with an actionable failure message."""
     try:
-        import cv2          # noqa: PLC0415 — deferred by design
+        import cv2  # noqa: PLC0415 — deferred by design
         import numpy as np  # noqa: PLC0415
     except ImportError as exc:
         raise ValueError(
@@ -76,7 +77,10 @@ def _lazy_cv() -> tuple[Any, Any]:
 # Phase A — registration
 # --------------------------------------------------------------------------- #
 
-def register_sketch(cv2: Any, np: Any, sketch: Any, base: Any) -> tuple[Any, dict[str, Any]]:
+
+def register_sketch(
+    cv2: Any, np: Any, sketch: Any, base: Any
+) -> tuple[Any, dict[str, Any]]:
     """Align the photo onto the layout. Returns (warped_image, diagnostics).
 
     ORB + BFMatcher(Hamming, cross-check) + RANSAC. Crosshair-GCP detection
@@ -130,6 +134,7 @@ def register_sketch(cv2: Any, np: Any, sketch: Any, base: Any) -> tuple[Any, dic
 # Phase B — segmentation
 # --------------------------------------------------------------------------- #
 
+
 def build_ink_mask(cv2: Any, np: Any, image_bgr: Any, ink_color: str) -> Any:
     """Binary mask of the requested ink color via HSV thresholding."""
     hsv = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2HSV)
@@ -137,7 +142,7 @@ def build_ink_mask(cv2: Any, np: Any, image_bgr: Any, ink_color: str) -> Any:
     for lower, upper in _INK_HSV_RANGES[ink_color]:
         mask |= cv2.inRange(hsv, np.array(lower), np.array(upper))
     kernel = np.ones((3, 3), np.uint8)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)   # despeckle
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)  # despeckle
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)  # bridge pen gaps
     return mask
 
@@ -145,6 +150,7 @@ def build_ink_mask(cv2: Any, np: Any, image_bgr: Any, ink_color: str) -> Any:
 # --------------------------------------------------------------------------- #
 # Phase C — pixel -> world transform
 # --------------------------------------------------------------------------- #
+
 
 def contours_to_world(
     cv2: Any,
@@ -168,11 +174,14 @@ def contours_to_world(
     sx, sy = (xmax - xmin) / float(w), (ymax - ymin) / float(h)
     min_vertices = 3 if closed else 2
 
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL,
-                                   cv2.CHAIN_APPROX_SIMPLE)
-    stats = {"found": len(contours), "kept": 0,
-             "skipped_small": 0, "skipped_degenerate": 0,
-             "dropped_nonfinite_vertices": 0}
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    stats = {
+        "found": len(contours),
+        "kept": 0,
+        "skipped_small": 0,
+        "skipped_degenerate": 0,
+        "dropped_nonfinite_vertices": 0,
+    }
     rings: list[list[tuple[float, float]]] = []
 
     for cnt in contours:
@@ -183,7 +192,7 @@ def contours_to_world(
             cnt = cv2.approxPolyDP(cnt, epsilon_px, closed)
 
         ring: list[tuple[float, float]] = []
-        for (px, py) in cnt.reshape(-1, 2):
+        for px, py in cnt.reshape(-1, 2):
             wx = xmin + (float(px) / w) * (xmax - xmin)
             wy = ymax - (float(py) / h) * (ymax - ymin)
             if not (math.isfinite(wx) and math.isfinite(wy)):
@@ -204,6 +213,7 @@ def contours_to_world(
 # --------------------------------------------------------------------------- #
 # Phase D — GDB commit + orchestration (worker entrypoint)
 # --------------------------------------------------------------------------- #
+
 
 def _extract_sketch_to_gis(arcpy: Any, inp: ExtractSketchSchema) -> dict[str, Any]:
     """Full pipeline. Receives guarded paths; appends rows into the target FC."""
@@ -243,28 +253,35 @@ def _extract_sketch_to_gis(arcpy: Any, inp: ExtractSketchSchema) -> dict[str, An
 
     # --- C. vectorize + georeference ---------------------------------------
     rings, stats = contours_to_world(
-        cv2, np, mask,
+        cv2,
+        np,
+        mask,
         (inp.xmin, inp.ymin, inp.xmax, inp.ymax),
         min_area_px=inp.min_contour_area_px,
         epsilon_px=inp.simplify_epsilon_px,
         closed=(inp.feature_type == "Polygon"),
     )
     if stats["skipped_small"]:
-        warnings.append(f"{stats['skipped_small']} contour(s) below "
-                        f"min_contour_area_px={inp.min_contour_area_px} ignored.")
+        warnings.append(
+            f"{stats['skipped_small']} contour(s) below "
+            f"min_contour_area_px={inp.min_contour_area_px} ignored."
+        )
     if stats["skipped_degenerate"]:
         warnings.append(f"{stats['skipped_degenerate']} degenerate ring(s) skipped.")
     if stats["dropped_nonfinite_vertices"]:
-        warnings.append(f"{stats['dropped_nonfinite_vertices']} non-finite "
-                        "vertex(es) dropped during georeferencing.")
+        warnings.append(
+            f"{stats['dropped_nonfinite_vertices']} non-finite "
+            "vertex(es) dropped during georeferencing."
+        )
     if not rings:
         return {
             "features_written": 0,
             "registration": reg_info,
             "contour_stats": stats,
-            "warnings": warnings + [
+            "warnings": [
+                *warnings,
                 "Ink was detected but produced no usable geometry; consider "
-                "lowering min_contour_area_px."
+                "lowering min_contour_area_px.",
             ],
         }
 
@@ -293,16 +310,18 @@ def _extract_sketch_to_gis(arcpy: Any, inp: ExtractSketchSchema) -> dict[str, An
 
 # -------------------------------------------------------------- registration
 
-register(ToolSpec(
-    "extract_sketch_to_gis",
-    Category.VISION,
-    "Sketch-to-GIS pipeline: align a smartphone photo of a hand-drawn sketch "
-    "onto its printed map layout (ORB+RANSAC homography), extract the "
-    "requested ink color (HSV segmentation), georeference the vectors using "
-    "the layout envelope, and append Polygon/Polyline features into an "
-    "existing GDB feature class. APPENDS rows — requires confirm=true. "
-    "Worker env needs: pip install opencv-python-headless numpy.",
-    ExtractSketchSchema,
-    _extract_sketch_to_gis,
-    destructive=True,   # appends to live data: explicit confirm required
-))
+register(
+    ToolSpec(
+        "extract_sketch_to_gis",
+        Category.VISION,
+        "Sketch-to-GIS pipeline: align a smartphone photo of a hand-drawn sketch "
+        "onto its printed map layout (ORB+RANSAC homography), extract the "
+        "requested ink color (HSV segmentation), georeference the vectors using "
+        "the layout envelope, and append Polygon/Polyline features into an "
+        "existing GDB feature class. APPENDS rows — requires confirm=true. "
+        "Worker env needs: pip install opencv-python-headless numpy.",
+        ExtractSketchSchema,
+        _extract_sketch_to_gis,
+        destructive=True,  # appends to live data: explicit confirm required
+    )
+)

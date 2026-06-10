@@ -28,8 +28,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 # --------------------------------------------------------------------------- #
 
 _STRICT: Final[ConfigDict] = ConfigDict(
-    frozen=True,           # value objects: no post-validation mutation
-    extra="forbid",        # unknown fields fail loudly (typo = bug, not noise)
+    frozen=True,  # value objects: no post-validation mutation
+    extra="forbid",  # unknown fields fail loudly (typo = bug, not noise)
     str_strip_whitespace=True,
 )
 
@@ -57,9 +57,7 @@ class ToolInput(BaseModel):
     field; the guard reads it generically for every ``write`` role.
     """
 
-    model_config = ConfigDict(
-        frozen=True, extra="forbid", str_strip_whitespace=True
-    )
+    model_config = ConfigDict(frozen=True, extra="forbid", str_strip_whitespace=True)
 
     #: field name -> security role; consumed by apply_path_guard().
     path_fields: ClassVar[dict[str, PathRole]] = {}
@@ -124,6 +122,7 @@ class ListLayersOutput(BaseModel):
 # execute_spatial_tool
 # --------------------------------------------------------------------------- #
 
+
 class SpatialToolName(str, enum.Enum):
     """Closed allowlist of executable geoprocessing tools.
 
@@ -150,9 +149,7 @@ class _ToolParameterSpec(BaseModel):
 TOOL_PARAMETER_SPECS: Final[dict[SpatialToolName, _ToolParameterSpec]] = {
     SpatialToolName.BUFFER: _ToolParameterSpec(
         required=frozenset({"buffer_distance_or_field"}),
-        optional=frozenset(
-            {"line_side", "line_end_type", "dissolve_option", "method"}
-        ),
+        optional=frozenset({"line_side", "line_end_type", "dissolve_option", "method"}),
     ),
     SpatialToolName.CLIP: _ToolParameterSpec(
         required=frozenset({"clip_features"}),
@@ -250,11 +247,11 @@ class WorkerError(BaseModel):
     model_config = _STRICT
 
     kind: Literal[
-        "validation",      # payload failed Pydantic re-validation in the worker
-        "security",        # PathGuard rejection inside the worker
-        "geoprocessing",   # arcpy.ExecuteError — tool ran and failed
-        "license",         # license checkout failure
-        "internal",        # anything else; details stay in stderr logs
+        "validation",  # payload failed Pydantic re-validation in the worker
+        "security",  # PathGuard rejection inside the worker
+        "geoprocessing",  # arcpy.ExecuteError — tool ran and failed
+        "license",  # license checkout failure
+        "internal",  # anything else; details stay in stderr logs
     ]
     message: str
     gp_messages: tuple[str, ...] = Field(default_factory=tuple)
@@ -280,20 +277,20 @@ class WorkerResult(BaseModel):
 
 
 __all__ = [
-    "DataType",
-    "GeometryType",
-    "ParameterScalar",
-    "PathRole",
-    "ToolInput",
-    "ListLayersInput",
-    "LayerInfo",
-    "ListLayersOutput",
-    "SpatialToolName",
     "TOOL_PARAMETER_SPECS",
+    "DataType",
     "ExecuteSpatialToolInput",
     "ExecuteSpatialToolOutput",
-    "WorkerOp",
-    "WorkerJob",
+    "GeometryType",
+    "LayerInfo",
+    "ListLayersInput",
+    "ListLayersOutput",
+    "ParameterScalar",
+    "PathRole",
+    "SpatialToolName",
+    "ToolInput",
     "WorkerError",
+    "WorkerJob",
+    "WorkerOp",
     "WorkerResult",
 ]

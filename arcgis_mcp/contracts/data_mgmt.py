@@ -38,7 +38,9 @@ class CreateFeatureClassInput(ToolInput):
     name: str = Field(..., pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=160)
     geometry_type: EsriGeometry = "POLYGON"
     wkid: Optional[int] = Field(
-        default=None, ge=1024, le=32767+200000,
+        default=None,
+        ge=1024,
+        le=32767 + 200000,
         description="Spatial reference WKID, e.g. 4326. None = unknown CRS.",
     )
     overwrite: bool = False
@@ -62,8 +64,9 @@ class RenameDatasetInput(DatasetInput):
 class AddFieldInput(DatasetInput):
     field_name: str = Field(..., pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=64)
     field_type: EsriFieldType = "TEXT"
-    length: Optional[int] = Field(default=None, ge=1, le=2147483647,
-                                  description="TEXT length; ignored otherwise.")
+    length: Optional[int] = Field(
+        default=None, ge=1, le=2147483647, description="TEXT length; ignored otherwise."
+    )
     alias: Optional[str] = None
 
 
@@ -180,9 +183,16 @@ class GetExtentInput(DatasetInput):
 
 
 GeometryProperty = Literal[
-    "AREA", "AREA_GEODESIC", "LENGTH", "LENGTH_GEODESIC",
-    "PERIMETER_LENGTH", "PERIMETER_LENGTH_GEODESIC",
-    "CENTROID_X", "CENTROID_Y", "POINT_X", "POINT_Y",
+    "AREA",
+    "AREA_GEODESIC",
+    "LENGTH",
+    "LENGTH_GEODESIC",
+    "PERIMETER_LENGTH",
+    "PERIMETER_LENGTH_GEODESIC",
+    "CENTROID_X",
+    "CENTROID_Y",
+    "POINT_X",
+    "POINT_Y",
 ]
 
 

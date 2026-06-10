@@ -58,14 +58,25 @@ class MergeFeaturesInput(MultiInputOverlay):
 
 
 class SelectByAttributeInput(InOutInput):
-    where_clause: str = Field(..., min_length=1, max_length=4000,
-                              description="SQL expression, e.g. \"POP > 1000\".")
+    where_clause: str = Field(
+        ...,
+        min_length=1,
+        max_length=4000,
+        description='SQL expression, e.g. "POP > 1000".',
+    )
 
 
 SpatialRelationship = Literal[
-    "INTERSECT", "WITHIN_A_DISTANCE", "CONTAINS", "WITHIN",
-    "COMPLETELY_CONTAINS", "COMPLETELY_WITHIN", "HAVE_THEIR_CENTER_IN",
-    "BOUNDARY_TOUCHES", "SHARE_A_LINE_SEGMENT_WITH", "CROSSED_BY_THE_OUTLINE_OF",
+    "INTERSECT",
+    "WITHIN_A_DISTANCE",
+    "CONTAINS",
+    "WITHIN",
+    "COMPLETELY_CONTAINS",
+    "COMPLETELY_WITHIN",
+    "HAVE_THEIR_CENTER_IN",
+    "BOUNDARY_TOUCHES",
+    "SHARE_A_LINE_SEGMENT_WITH",
+    "CROSSED_BY_THE_OUTLINE_OF",
 ]
 
 
@@ -75,7 +86,8 @@ class SelectByLocationInput(ToolInput):
     out_features: str
     relationship: SpatialRelationship = "INTERSECT"
     search_distance: Optional[str] = Field(
-        default=None, description="e.g. '500 Meters' (WITHIN_A_DISTANCE only).")
+        default=None, description="e.g. '500 Meters' (WITHIN_A_DISTANCE only)."
+    )
     invert: bool = Field(default=False, description="True = NOT relationship.")
     overwrite: bool = False
     path_fields: ClassVar[dict[str, PathRole]] = {
@@ -102,9 +114,12 @@ class SpatialJoinInput(ToolInput):
 class NearAnalysisInput(ToolInput):
     in_features: str = Field(..., description="MODIFIED in place: NEAR_* fields added.")
     near_features: str
-    search_radius: Optional[str] = Field(default=None, description="e.g. '1 Kilometers'")
-    confirm: bool = Field(default=False,
-                          description="Must be true: mutates the input dataset.")
+    search_radius: Optional[str] = Field(
+        default=None, description="e.g. '1 Kilometers'"
+    )
+    confirm: bool = Field(
+        default=False, description="Must be true: mutates the input dataset."
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_features": "read",
         "near_features": "read",
@@ -127,8 +142,11 @@ class GenerateNearTableInput(ToolInput):
 
 class MinimumBoundingGeometryInput(InOutInput):
     geometry_type: Literal[
-        "RECTANGLE_BY_AREA", "RECTANGLE_BY_WIDTH", "CONVEX_HULL",
-        "CIRCLE", "ENVELOPE",
+        "RECTANGLE_BY_AREA",
+        "RECTANGLE_BY_WIDTH",
+        "CONVEX_HULL",
+        "CIRCLE",
+        "ENVELOPE",
     ] = "CONVEX_HULL"
     group_option: Literal["NONE", "ALL"] = "NONE"
 
@@ -147,13 +165,16 @@ class MultipartToSinglepartInput(InOutInput):
 
 class SimplifyFeaturesInput(InOutInput):
     algorithm: Literal["POINT_REMOVE", "BEND_SIMPLIFY", "WEIGHTED_AREA"] = (
-        "POINT_REMOVE")
+        "POINT_REMOVE"
+    )
     tolerance: str = Field(..., description="e.g. '10 Meters'")
 
 
 class SmoothFeaturesInput(InOutInput):
     algorithm: Literal["PAEK", "BEZIER_INTERPOLATION"] = "PAEK"
-    tolerance: str = Field(..., description="PAEK smoothing tolerance, e.g. '100 Meters'")
+    tolerance: str = Field(
+        ..., description="PAEK smoothing tolerance, e.g. '100 Meters'"
+    )
 
 
 class SummarizeWithinInput(ToolInput):
@@ -180,15 +201,28 @@ class FrequencyAnalysisInput(ToolInput):
     }
 
 
-StatType = Literal["SUM", "MEAN", "MIN", "MAX", "STD", "COUNT", "FIRST", "LAST",
-                   "RANGE", "MEDIAN", "VARIANCE", "UNIQUE"]
+StatType = Literal[
+    "SUM",
+    "MEAN",
+    "MIN",
+    "MAX",
+    "STD",
+    "COUNT",
+    "FIRST",
+    "LAST",
+    "RANGE",
+    "MEDIAN",
+    "VARIANCE",
+    "UNIQUE",
+]
 
 
 class StatisticsAnalysisInput(ToolInput):
     in_table: str
     out_table: str
     statistics_fields: List[Tuple[str, StatType]] = Field(
-        ..., min_length=1, description="[[field, SUM|MEAN|...], ...]")
+        ..., min_length=1, description="[[field, SUM|MEAN|...], ...]"
+    )
     case_field: Optional[str] = None
     overwrite: bool = False
     path_fields: ClassVar[dict[str, PathRole]] = {
@@ -223,7 +257,8 @@ class CreateFishnetInput(ToolInput):
     origin_x: float
     origin_y: float
     y_axis_y: Optional[float] = Field(
-        default=None, description="Y of the orientation point; default origin_y+10.")
+        default=None, description="Y of the orientation point; default origin_y+10."
+    )
     cell_width: float = Field(..., gt=0)
     cell_height: float = Field(..., gt=0)
     rows: int = Field(..., ge=1, le=10000)

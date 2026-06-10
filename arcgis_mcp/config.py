@@ -89,7 +89,9 @@ class Settings:
     log_file: Path | None
     log_level: int
     tool_timeout_s: int
-    anthropic_api_key: str | None = field(repr=False, default=None)  # never in repr/logs
+    anthropic_api_key: str | None = field(
+        repr=False, default=None
+    )  # never in repr/logs
 
     @classmethod
     def from_environment(cls) -> "Settings":
@@ -109,14 +111,10 @@ class Settings:
                 continue
             root = Path(chunk).expanduser().resolve()
             if not root.is_dir():
-                raise ConfigError(
-                    f"Allowed root is not an existing directory: {root}"
-                )
+                raise ConfigError(f"Allowed root is not an existing directory: {root}")
             roots.append(root)
         if not roots:
-            raise ConfigError(
-                "ARCGIS_MCP_ALLOWED_ROOTS yielded no usable directories."
-            )
+            raise ConfigError("ARCGIS_MCP_ALLOWED_ROOTS yielded no usable directories.")
 
         scratch_raw = _optional_env("ARCGIS_MCP_SCRATCH_GDB")
         scratch = (
@@ -207,6 +205,8 @@ def configure_logging(settings: Settings) -> logging.Logger:
     root.setLevel(settings.log_level)
     root.propagate = False  # never bubble to the (unconfigured) global root
     root._arcgis_mcp_configured = True  # type: ignore[attr-defined]
-    root.debug("Logging configured (stderr%s).",
-               " + rotating file" if settings.log_file else "")
+    root.debug(
+        "Logging configured (stderr%s).",
+        " + rotating file" if settings.log_file else "",
+    )
     return root

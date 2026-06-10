@@ -11,17 +11,16 @@ here. Order = registration order = tools/list order.
 
 from __future__ import annotations
 
-from . import (  # noqa: F401 — imports ARE the registrations
-    map_mgmt,
+from ..registry import all_specs, count
+from . import (
     data_mgmt,
+    editing,
+    export_layout,
     geometry,
+    map_mgmt,
+    network,
     projection,
     raster_ops,
-    export_layout,
-    editing,
-    network,
     spatial_stats,
     vision_analytics,
 )
-
-from ..registry import all_specs, count  # noqa: F401 — convenience re-export

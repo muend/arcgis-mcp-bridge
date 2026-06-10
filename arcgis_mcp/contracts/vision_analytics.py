@@ -28,15 +28,18 @@ class ExtractSketchSchema(ToolInput):
     """
 
     sketch_image: str = Field(
-        ..., min_length=1,
+        ...,
+        min_length=1,
         description="Smartphone photo of the hand-drawn sketch (jpg/png).",
     )
     base_layout: str = Field(
-        ..., min_length=1,
+        ...,
+        min_length=1,
         description="Clean exported digital map layout the sketch was drawn on.",
     )
     target_feature_class: str = Field(
-        ..., min_length=1,
+        ...,
+        min_length=1,
         description="Existing GDB feature class to append extracted features to.",
     )
 
@@ -51,11 +54,13 @@ class ExtractSketchSchema(ToolInput):
 
     # Tunables with conservative defaults (documented in the tool surface).
     min_contour_area_px: float = Field(
-        default=80.0, ge=0.0,
+        default=80.0,
+        ge=0.0,
         description="Contours smaller than this many pixels^2 are noise.",
     )
     simplify_epsilon_px: float = Field(
-        default=2.0, ge=0.0,
+        default=2.0,
+        ge=0.0,
         description="Douglas-Peucker tolerance in pixels (0 = no simplify).",
     )
     confirm: bool = Field(

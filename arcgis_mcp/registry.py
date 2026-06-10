@@ -44,19 +44,24 @@ class Category(str, enum.Enum):
 #: Worker-side implementation signature: (arcpy module, validated input) ->
 #: JSON-safe result dict. Receives arcpy as a parameter so tools/ modules
 #: never import it (Layer B exclusivity is preserved by construction).
-WorkerFn = Callable[[Any, ToolInput], dict[str, Any]]
+#: The input is typed Any rather than ToolInput: each worker function takes
+#: its own concrete model, and Callable parameters are contravariant — the
+#: specific-input functions could never satisfy a ToolInput-typed alias.
+#: Runtime pairing is guaranteed by the dispatcher, which validates the
+#: payload against spec.input_model before invoking spec.worker_fn.
+WorkerFn = Callable[[Any, Any], dict[str, Any]]
 
 
 @dataclass(frozen=True)
 class ToolSpec:
     """Complete declarative description of one catalog tool."""
 
-    name: str                       # MCP tool name, snake_case (catalog col 2)
+    name: str  # MCP tool name, snake_case (catalog col 2)
     category: Category
-    description: str                # surfaced to Claude via tools/list
+    description: str  # surfaced to Claude via tools/list
     input_model: type[ToolInput]
     worker_fn: WorkerFn
-    destructive: bool = False       # True => input model must carry confirm flag
+    destructive: bool = False  # True => input model must carry confirm flag
 
 
 _REGISTRY: Final[dict[str, ToolSpec]] = {}
@@ -126,9 +131,9 @@ __all__ = [
     "Category",
     "ToolSpec",
     "WorkerFn",
-    "register",
-    "get",
     "all_specs",
-    "count",
     "apply_path_guard",
+    "count",
+    "get",
+    "register",
 ]
