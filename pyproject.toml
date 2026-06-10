@@ -1,0 +1,107 @@
+# ---------------------------------------------------------------------------
+# arcgis-mcp-bridge — package metadata + static-analysis configuration anchor
+# ---------------------------------------------------------------------------
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arcgis-mcp-bridge"
+version = "0.5.0"
+description = "A secure, local-first, asynchronous MCP server exposing ArcGIS Pro's ArcPy engine over stdio JSON-RPC."
+readme = "README.md"
+# Floor is 3.11 (the ArcPy/Layer B interpreter); Layer A may run newer (3.13).
+# Source must therefore stay compatible with 3.11 — Ruff enforces py311 below.
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [{ name = "muend" }]
+dependencies = [
+    "fastmcp",
+    "pydantic>=2.0",
+]
+
+[project.optional-dependencies]
+# Vision stack is only needed by the Layer B worker for extract_sketch_to_gis.
+vision = ["opencv-python-headless", "numpy"]
+dev = ["ruff", "mypy"]
+
+[project.urls]
+Repository = "https://github.com/muend/arcgis-mcp-bridge"
+
+[tool.setuptools.packages.find]
+include = ["arcgis_mcp*"]
+
+# ---------------------------------------------------------------------------
+# Ruff — formatter + linter (single tool, no black/isort/flake8 fragmentation)
+# ---------------------------------------------------------------------------
+
+[tool.ruff]
+line-length = 88
+# Lint for the OLDEST supported interpreter: code that only parses on 3.13
+# would crash the Layer B worker at import time.
+target-version = "py311"
+src = ["arcgis_mcp"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort import sorting
+    "B",    # flake8-bugbear (likely bugs: mutable defaults, late-binding...)
+    "RUF",  # ruff-native rules
+]
+ignore = [
+    # Line length is enforced by the formatter; long URLs/docstring tables in
+    # tool descriptions are allowed to breathe.
+    "E501",
+]
+# noqa codes from rule families we deliberately do NOT enable (they document
+# intent for human reviewers); prevents RUF100 false positives.
+external = ["PLC", "BLE", "ANN", "A"]
+
+[tool.ruff.lint.per-file-ignores]
+# Category modules import sibling contracts as `c` for registration density;
+# star-style re-export hubs are intentional in the contracts package façade.
+"arcgis_mcp/contracts/__init__.py" = ["F401"]
+"arcgis_mcp/tools/__init__.py" = ["F401"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["arcgis_mcp"]
+combine-as-imports = true
+
+# ---------------------------------------------------------------------------
+# Mypy — strict static typing with explicit escape hatches for binary deps
+# ---------------------------------------------------------------------------
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["arcgis_mcp"]
+# Pydantic v2 ships a mypy plugin: model fields, validators and frozen
+# semantics are understood instead of guessed.
+plugins = ["pydantic.mypy"]
+warn_unreachable = true
+show_error_codes = true
+pretty = true
+
+# Üçüncü parti kütüphane dekoratörlerinin katı tip kontrolünü esnetin
+disallow_untyped_decorators = false
+
+# Closed-source / binary / optionally-installed dependencies: no stubs exist.
+[[tool.mypy.overrides]]
+module = ["arcpy", "arcpy.*", "cv2", "cv2.*", "fastmcp", "fastmcp.*", "mcp", "mcp.*"]
+ignore_missing_imports = true
+
+# Worker functions intentionally traffic in `Any` (the arcpy module object is
+# injected as a parameter precisely so Layer A never imports it). Strict mode
+# stays on, but arcpy-touching expressions are exempt from Any-propagation
+# noise in the tools layer.
+[[tool.mypy.overrides]]
+module = ["arcgis_mcp.tools.*"]
+disallow_any_explicit = false
+warn_return_any = false
+# Worker functions return plain `dict` payloads destined for JSON frames;
+# parameterizing 75 signatures adds noise, not safety, in this Any-domain.
+disallow_any_generics = false

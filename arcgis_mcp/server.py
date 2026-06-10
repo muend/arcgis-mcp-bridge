@@ -35,10 +35,13 @@ from typing import Any, Final, Optional
 try:  # official SDK packaging
     from mcp.server.fastmcp import FastMCP
 except ImportError:  # standalone fastmcp 2.x packaging
-    from fastmcp import FastMCP  # type: ignore[no-redef]
+    from fastmcp import FastMCP
 
 from pydantic import ValidationError
 
+# Importing the tools package populates the registry with all catalog
+# verticals (each category module registers its ToolSpecs at import time).
+from . import tools as _catalog  # noqa: F401
 from .config import ConfigError, Settings, configure_logging
 from .contracts import (
     ExecuteSpatialToolInput,
@@ -48,13 +51,8 @@ from .contracts import (
     WorkerResult,
 )
 from .execution import ExecutionBackend, SubprocessBackend, new_job_id
-from .registry import ToolSpec, all_specs, apply_path_guard
-from .registry import count as registry_count
+from .registry import ToolSpec, all_specs, apply_path_guard, count as registry_count
 from .security import PathGuard, PathSecurityError
-
-# Importing the tools package populates the registry with all catalog
-# verticals (categories 1-3 live; 4-9 stubs register nothing yet).
-from . import tools as _catalog  # noqa: F401, E402
 
 #: Repository root (parent of the ``arcgis_mcp`` package directory).
 _PROJECT_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
@@ -65,6 +63,7 @@ _PROJECT_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 # A misconfigured server must die with an actionable stderr message BEFORE
 # accepting the handshake, never limp into half-initialized tool calls.
 # --------------------------------------------------------------------------- #
+
 
 def _bootstrap() -> tuple[Settings, PathGuard, ExecutionBackend, logging.Logger]:
     """Build the object graph from validated configuration.
@@ -111,6 +110,7 @@ mcp: Final[FastMCP] = FastMCP("arcgis-pro-bridge")
 # Result translation helpers
 # --------------------------------------------------------------------------- #
 
+
 class ToolExecutionError(RuntimeError):
     """Raised to surface a structured failure to the MCP host.
 
@@ -143,6 +143,7 @@ def _default_output_path(tool_value: str, job_id: str) -> str:
 # --------------------------------------------------------------------------- #
 # Tool surface
 # --------------------------------------------------------------------------- #
+
 
 @mcp.tool()
 async def health_check() -> dict[str, Any]:
@@ -251,7 +252,11 @@ async def execute_spatial_tool(
     job = WorkerJob(op="execute_spatial_tool", payload=payload, job_id=job_id)
     LOG.info(
         "execute_spatial_tool %s: tool=%s in=%s out=%s overwrite=%s",
-        job_id, inp.tool.value, inp.in_features, resolved_out, inp.overwrite,
+        job_id,
+        inp.tool.value,
+        inp.in_features,
+        resolved_out,
+        inp.overwrite,
     )
     result = await BACKEND.run_job(job, timeout_s=SETTINGS.tool_timeout_s)
     return _unwrap(result)
@@ -262,6 +267,7 @@ async def execute_spatial_tool(
 # serves every vertical; adding a tool never touches this file)
 # --------------------------------------------------------------------------- #
 
+
 def _make_catalog_proxy(spec: ToolSpec) -> Any:
     """Build the async MCP endpoint for one ToolSpec.
 
@@ -271,7 +277,7 @@ def _make_catalog_proxy(spec: ToolSpec) -> Any:
     same class, by construction.
     """
 
-    async def _proxy(params) -> dict[str, Any]:  # noqa: ANN001 — set below
+    async def _proxy(params: Any) -> dict[str, Any]:  # real schema set below
         try:
             inp = spec.input_model.model_validate(
                 params if isinstance(params, dict) else params.model_dump()
@@ -285,14 +291,12 @@ def _make_catalog_proxy(spec: ToolSpec) -> Any:
             payload={"tool": spec.name, "args": inp.model_dump(mode="json")},
             job_id=new_job_id(),
         )
-        LOG.info("%s %s: dispatch (%s)", spec.name, job.job_id,
-                 spec.category.value)
+        LOG.info("%s %s: dispatch (%s)", spec.name, job.job_id, spec.category.value)
         return _unwrap(await BACKEND.run_job(job, timeout_s=SETTINGS.tool_timeout_s))
 
     _proxy.__name__ = spec.name
     _proxy.__doc__ = spec.description
-    _proxy.__annotations__ = {"params": spec.input_model,
-                              "return": dict[str, Any]}
+    _proxy.__annotations__ = {"params": spec.input_model, "return": dict[str, Any]}
     return _proxy
 
 
@@ -302,8 +306,7 @@ def _register_catalog_tools() -> None:
         mcp.tool(name=spec.name, description=spec.description)(
             _make_catalog_proxy(spec)
         )
-    LOG.info("Catalog tools registered: %d (plus 3 core tools).",
-             registry_count())
+    LOG.info("Catalog tools registered: %d (plus 3 core tools).", registry_count())
 
 
 _register_catalog_tools()
@@ -312,6 +315,7 @@ _register_catalog_tools()
 # --------------------------------------------------------------------------- #
 # Entrypoint
 # --------------------------------------------------------------------------- #
+
 
 def main() -> None:
     """Run the stdio server. Blocking; owns the process from here on."""
