@@ -48,7 +48,13 @@ from .contracts import (
     WorkerResult,
 )
 from .execution import ExecutionBackend, SubprocessBackend, new_job_id
+from .registry import ToolSpec, all_specs, apply_path_guard
+from .registry import count as registry_count
 from .security import PathGuard, PathSecurityError
+
+# Importing the tools package populates the registry with all catalog
+# verticals (categories 1-3 live; 4-9 stubs register nothing yet).
+from . import tools as _catalog  # noqa: F401, E402
 
 #: Repository root (parent of the ``arcgis_mcp`` package directory).
 _PROJECT_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
@@ -249,6 +255,58 @@ async def execute_spatial_tool(
     )
     result = await BACKEND.run_job(job, timeout_s=SETTINGS.tool_timeout_s)
     return _unwrap(result)
+
+
+# --------------------------------------------------------------------------- #
+# Catalog tool surface — generated from the registry (one proxy factory
+# serves every vertical; adding a tool never touches this file)
+# --------------------------------------------------------------------------- #
+
+def _make_catalog_proxy(spec: ToolSpec) -> Any:
+    """Build the async MCP endpoint for one ToolSpec.
+
+    The proxy's ``params`` annotation is the spec's Pydantic model, so
+    FastMCP derives the full JSON schema (types, Literals, defaults,
+    descriptions) that Claude sees — schema and validation come from the
+    same class, by construction.
+    """
+
+    async def _proxy(params) -> dict[str, Any]:  # noqa: ANN001 — set below
+        try:
+            inp = spec.input_model.model_validate(
+                params if isinstance(params, dict) else params.model_dump()
+            )
+            apply_path_guard(inp, GUARD)  # Layer-A precheck: fail before spawn
+        except (ValidationError, PathSecurityError) as exc:
+            raise ToolExecutionError(f"[validation] {exc}") from exc
+
+        job = WorkerJob(
+            op="run_tool",
+            payload={"tool": spec.name, "args": inp.model_dump(mode="json")},
+            job_id=new_job_id(),
+        )
+        LOG.info("%s %s: dispatch (%s)", spec.name, job.job_id,
+                 spec.category.value)
+        return _unwrap(await BACKEND.run_job(job, timeout_s=SETTINGS.tool_timeout_s))
+
+    _proxy.__name__ = spec.name
+    _proxy.__doc__ = spec.description
+    _proxy.__annotations__ = {"params": spec.input_model,
+                              "return": dict[str, Any]}
+    return _proxy
+
+
+def _register_catalog_tools() -> None:
+    """Materialize every registered ToolSpec as an MCP tool endpoint."""
+    for spec in all_specs():
+        mcp.tool(name=spec.name, description=spec.description)(
+            _make_catalog_proxy(spec)
+        )
+    LOG.info("Catalog tools registered: %d (plus 3 core tools).",
+             registry_count())
+
+
+_register_catalog_tools()
 
 
 # --------------------------------------------------------------------------- #

@@ -19,7 +19,7 @@ All models are Pydantic v2, ``frozen=True`` (immutable value objects) and
 from __future__ import annotations
 
 import enum
-from typing import Final, Literal, Optional, Union
+from typing import ClassVar, Final, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -37,6 +37,32 @@ _STRICT: Final[ConfigDict] = ConfigDict(
 #: every geoprocessing argument ArcPy accepts is expressible as a scalar
 #: string/number, and flat payloads keep the IPC frames auditable).
 ParameterScalar = Union[str, int, float, bool]
+
+#: Declarative security role of a path-typed field. ``read`` = must exist
+#: inside an allowed root; ``write`` = output discipline (overwrite guard);
+#: ``read_list`` = a list[str] field where every element is a read path.
+PathRole = Literal["read", "write", "read_list"]
+
+
+class ToolInput(BaseModel):
+    """Root class for every catalog tool's input model.
+
+    Subclasses declare their filesystem surface in ``path_fields`` — the
+    single source of truth consumed by ``registry.apply_path_guard()`` in
+    BOTH processes. A path-typed field missing from this mapping is a
+    review error, not a runtime fallback: undeclared fields are never
+    guarded, so reviewers must treat ``path_fields`` as security-critical.
+
+    Models that produce datasets should include an ``overwrite: bool = False``
+    field; the guard reads it generically for every ``write`` role.
+    """
+
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", str_strip_whitespace=True
+    )
+
+    #: field name -> security role; consumed by apply_path_guard().
+    path_fields: ClassVar[dict[str, PathRole]] = {}
 
 
 # --------------------------------------------------------------------------- #
@@ -205,7 +231,7 @@ class ExecuteSpatialToolOutput(BaseModel):
 # Internal IPC envelope (server <-> worker, NDJSON over pipes)
 # --------------------------------------------------------------------------- #
 
-WorkerOp = Literal["list_layers", "execute_spatial_tool", "ping"]
+WorkerOp = Literal["list_layers", "execute_spatial_tool", "ping", "run_tool"]
 
 
 class WorkerJob(BaseModel):
@@ -257,6 +283,8 @@ __all__ = [
     "DataType",
     "GeometryType",
     "ParameterScalar",
+    "PathRole",
+    "ToolInput",
     "ListLayersInput",
     "LayerInfo",
     "ListLayersOutput",

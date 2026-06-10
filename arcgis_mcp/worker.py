@@ -1,7 +1,7 @@
 """arcgis_mcp.worker — Layer B entrypoint. The ONLY module that imports arcpy.
 
-Runs inside the cloned ``arcgis-mcp-env`` interpreter as a child process of
-the MCP server (see ``execution.SubprocessBackend``). Lifecycle per job:
+Runs inside the licensed ``arcgispro-py3``-derived interpreter as a child
+process of the MCP server (see ``execution.SubprocessBackend``). Lifecycle:
 
     stdin  ──► one NDJSON ``WorkerJob`` frame
     stdout ──► one NDJSON ``WorkerResult`` frame (nothing else, ever)
@@ -49,7 +49,13 @@ from .contracts import (
     WorkerJob,
     WorkerResult,
 )
+from .registry import apply_path_guard
+from .registry import get as registry_get
 from .security import PathGuard, PathSecurityError
+
+# Importing the tools package populates the registry (each category module
+# registers its ToolSpecs at import time). arcpy is NOT imported by this.
+from . import tools as _catalog  # noqa: F401, E402
 
 LOG: Final[logging.Logger] = logging.getLogger("arcgis_mcp.worker")
 
@@ -91,8 +97,7 @@ def _get_arcpy() -> ModuleType:
 
 
 # --------------------------------------------------------------------------- #
-# Tool adapters — one tiny function per allowlisted tool (Open/Closed:
-# adding a tool = new enum member + new adapter, no dispatcher surgery)
+# Legacy Stage 2 tool adapters (Buffer/Clip gateway)
 # --------------------------------------------------------------------------- #
 
 def _adapt_buffer(
@@ -227,7 +232,6 @@ def _handle_execute_spatial_tool(
         return out.model_dump(mode="json")
     except arcpy.ExecuteError as exc:
         # Tool ran and failed: a DOMAIN error, not an infrastructure one.
-        # Surface the GP message stack — it is the actionable diagnostic.
         raise GeoprocessingFailure(
             message=str(exc).strip() or "Geoprocessing tool failed.",
             gp_messages=tuple(arcpy.GetMessages().splitlines()),
@@ -249,12 +253,53 @@ class GeoprocessingFailure(RuntimeError):
         self.elapsed_seconds = elapsed_seconds
 
 
+def _handle_run_tool(payload: dict[str, Any], guard: PathGuard) -> dict[str, Any]:
+    """Generic dispatcher for every registry-defined catalog tool.
+
+    One handler serves all 100 tools (DRY): validate against the spec's
+    input model, re-enforce the declarative path roles, hand arcpy and the
+    sanitized input to the spec's worker function.
+    """
+    name = str(payload.get("tool", ""))
+    spec = registry_get(name)
+    if spec is None:
+        raise ValueError(f"Unknown catalog tool: {name!r}")
+
+    inp = spec.input_model.model_validate(payload.get("args", {}))
+    inp = apply_path_guard(inp, guard)  # Layer-B re-validation: trust no parent
+
+    # Destructive-tool gate BEFORE the expensive arcpy import: an unconfirmed
+    # delete must be rejected in milliseconds, not after a 30 s license spin-up.
+    if spec.destructive and not getattr(inp, "confirm", False):
+        raise PermissionError(
+            f"{name} is destructive or mutates its input: "
+            "set confirm=true to proceed."
+        )
+
+    arcpy = _get_arcpy()
+    arcpy.env.overwriteOutput = bool(getattr(inp, "overwrite", False))
+
+    t0 = time.perf_counter()
+    try:
+        result = spec.worker_fn(arcpy, inp)
+    except arcpy.ExecuteError as exc:
+        raise GeoprocessingFailure(
+            message=str(exc).strip() or f"{name} failed.",
+            gp_messages=tuple(arcpy.GetMessages().splitlines()),
+            elapsed_seconds=round(time.perf_counter() - t0, 3),
+        ) from exc
+    result.setdefault("tool", name)
+    result.setdefault("elapsed_seconds", round(time.perf_counter() - t0, 3))
+    return result
+
+
 _HANDLERS: Final[
     dict[str, Callable[[dict[str, Any], PathGuard], dict[str, Any]]]
 ] = {
     "ping": _handle_ping,
     "list_layers": _handle_list_layers,
     "execute_spatial_tool": _handle_execute_spatial_tool,
+    "run_tool": _handle_run_tool,
 }
 
 
@@ -290,9 +335,12 @@ def process_frame(raw_line: str, guard: PathGuard) -> WorkerResult:
     try:
         result = handler(dict(job.payload), guard)
         return WorkerResult(job_id=job.job_id, ok=True, result=result)
-    except ValidationError as exc:
+    except (ValidationError, ValueError, LookupError) as exc:
         return _error_result(job.job_id, "validation", str(exc))
     except PathSecurityError as exc:
+        return _error_result(job.job_id, "security", str(exc))
+    except PermissionError as exc:
+        # Confirm-flag guards on destructive tools (delete, remove, near).
         return _error_result(job.job_id, "security", str(exc))
     except LicenseUnavailableError as exc:
         return _error_result(job.job_id, "license", str(exc))
