@@ -1,3 +1,5 @@
+![PyPI - Version](https://img.shields.io/pypi/v/arcgis-mcp-bridge?color=blue)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/arcgis-mcp-bridge?color=maroon)
 ![CI](https://github.com/muend/arcgis-mcp-bridge/actions/workflows/ci.yml/badge.svg)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License](https://img.shields.io/badge/license-Apache--2.0-green)
