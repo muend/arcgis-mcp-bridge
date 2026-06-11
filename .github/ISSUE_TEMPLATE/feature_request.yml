@@ -1,0 +1,59 @@
+name: Feature request
+description: Propose a new tool or capability
+title: "[feat]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        New tools follow the contracts → tools → registry → verify pipeline
+        described in CONTRIBUTING.md. Telling us the vertical up front routes
+        the request to the right category module.
+  - type: dropdown
+    id: gis-domain
+    attributes:
+      label: GIS domain (vertical)
+      description: Which of the 10 catalog verticals does this belong to?
+      options:
+        - map_layer_management
+        - data_management
+        - geometry_analysis
+        - coordinate_reference_projection
+        - raster_operations
+        - vision_analytics
+        - export_layout
+        - editing_topology
+        - network_analysis
+        - spatial_statistics
+    validations:
+      required: true
+  - type: input
+    id: arcpy-counterpart
+    attributes:
+      label: ArcPy counterpart
+      description: The exact arcpy function/tool this would wrap (exact Esri casing).
+      placeholder: "arcpy.analysis.SummarizeNearby"
+    validations:
+      required: false
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / workflow
+      description: What GIS workflow is blocked or painful today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed tool surface
+      description: Sketch the inputs (paths, parameters) and the result payload.
+    validations:
+      required: false
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety considerations
+      options:
+        - label: This operation mutates or deletes data (needs a confirm gate)
+        - label: This operation requires an Esri extension license (Spatial/Network)
+        - label: This operation accepts a free-form expression string

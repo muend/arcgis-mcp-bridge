@@ -38,6 +38,12 @@ MosaicMethod = Literal["FIRST", "LAST", "BLEND", "MEAN", "MINIMUM", "MAXIMUM"]
 
 _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
+#: Map-algebra expression whitelist: identifiers, numbers, arithmetic,
+#: comparisons, boolean/bitwise operators, parentheses and commas. No
+#: quotes, no attribute access beyond what sa functions need, so a
+#: prompt-injected ``__import__('os')``-style payload cannot be expressed.
+_MAP_ALGEBRA_CHARS = re.compile(r"^[A-Za-z0-9_+\-*/().,%<>=!&|~^ \t]+$")
+
 
 class RasterInOut(ToolInput):
     """Shared base: one input raster, one output raster."""
@@ -96,6 +102,26 @@ class RasterCalculatorInput(ToolInput):
         bad = [n for n in v if not _IDENTIFIER.match(n)]
         if bad:
             raise ValueError(f"Variable names must be identifiers: {bad}")
+        return v
+
+    @field_validator("expression")
+    @classmethod
+    def _expression_is_pure_map_algebra(cls, v: str) -> str:
+        """Constrain the free-form channel to the map-algebra grammar.
+
+        The expression string ultimately reaches an evaluation context in
+        the worker; restricting it to identifiers/numbers/operators (no
+        quotes, no dunder access) means only declared raster variables and
+        sa functions are reachable — never the interpreter's builtins.
+        """
+        if not _MAP_ALGEBRA_CHARS.match(v):
+            raise ValueError(
+                "Expression contains characters outside the map-algebra "
+                "grammar (identifiers, numbers, + - * / % ( ) , comparison "
+                "and boolean operators)."
+            )
+        if "__" in v:
+            raise ValueError("Dunder sequences are not valid map algebra.")
         return v
 
     @model_validator(mode="after")

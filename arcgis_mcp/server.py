@@ -1,9 +1,13 @@
 """arcgis_mcp.server — Layer A: the MCP stdio endpoint (FastMCP).
 
 Responsibilities (strictly protocol-side — SRP):
-  * Initialize configuration ONCE at module evaluation (constraint: this
-    FastMCP version has no ``on_startup`` lifecycle hook, so top-level
-    initialization is the sanctioned composition root).
+  * Build the runtime object graph LAZILY via ``get_runtime()`` — a
+    memoized composition root (``functools.lru_cache(maxsize=1)``).
+    Importing this module performs NO environment validation and NEVER
+    raises ``SystemExit``: unit-test suites and static tooling can import
+    it on machines with no ArcGIS installation. Environment resolution is
+    deferred to the first tool invocation (or ``main()``, which resolves
+    it eagerly so a misconfigured server still dies before the handshake).
   * Register the tool surface (``list_layers``, ``execute_spatial_tool``,
     ``health_check``) with contract-validated inputs.
   * Translate ``WorkerResult`` frames into MCP tool results.
@@ -16,19 +20,22 @@ What this module must NEVER do:
     exactly how Layer A and the Stage 1 contracts drifted apart, which is
     the class of bug this revision eliminates.
 
-Settings field contract (all lowercase, six fields, frozen):
+Settings field contract (all lowercase, frozen):
     arcpy_python_path : Path  — worker interpreter (arcgis-mcp-env)
     allowed_roots     : tuple[Path, ...] — PathGuard boundary
     scratch_gdb       : Path  — default output workspace
     log_file          : Path | None — optional rotating log target
     log_level         : int   — stdlib logging level
     tool_timeout_s    : int   — per-job wall-clock ceiling
+    max_workers       : int   — concurrent arcpy worker ceiling (semaphore)
 """
 
 from __future__ import annotations
 
+import functools
 import logging
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Final, Optional
 
@@ -57,15 +64,32 @@ from .security import PathGuard, PathSecurityError
 #: Repository root (parent of the ``arcgis_mcp`` package directory).
 _PROJECT_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 
+#: Module logger — safe at import time: emits nothing until
+#: ``configure_logging()`` (called inside ``get_runtime()``) attaches
+#: handlers to the package root.
+LOG: Final[logging.Logger] = logging.getLogger("arcgis_mcp.server")
+
 
 # --------------------------------------------------------------------------- #
-# Composition root — module-level by constraint, fail-fast by design.
-# A misconfigured server must die with an actionable stderr message BEFORE
-# accepting the handshake, never limp into half-initialized tool calls.
+# Composition root — LAZY and memoized, fail-fast on first resolution.
+# Importing this module never touches the environment (testability); a
+# misconfigured server still dies with an actionable stderr message on the
+# first ``get_runtime()`` call — which ``main()`` performs BEFORE accepting
+# the handshake, never limping into half-initialized tool calls.
 # --------------------------------------------------------------------------- #
 
 
-def _bootstrap() -> tuple[Settings, PathGuard, ExecutionBackend, logging.Logger]:
+@dataclass(frozen=True)
+class Runtime:
+    """The fully wired object graph: one instance per server process."""
+
+    settings: Settings
+    guard: PathGuard
+    backend: ExecutionBackend
+    log: logging.Logger
+
+
+def _bootstrap() -> Runtime:
     """Build the object graph from validated configuration.
 
     Wrapped in a function (rather than bare top-level statements) so the
@@ -86,22 +110,34 @@ def _bootstrap() -> tuple[Settings, PathGuard, ExecutionBackend, logging.Logger]
         backend: ExecutionBackend = SubprocessBackend(
             arcpy_python=settings.arcpy_python_path,
             project_root=_PROJECT_ROOT,
+            max_workers=settings.max_workers,
         )
     except (ValueError, FileNotFoundError) as exc:
         log.critical("Bootstrap failed: %s", exc)
         raise SystemExit(1) from exc
 
     log.info(
-        "Bootstrap complete: interpreter=%s, roots=%d, scratch=%s, timeout=%ss",
+        "Bootstrap complete: interpreter=%s, roots=%d, scratch=%s, "
+        "timeout=%ss, max_workers=%d",
         settings.arcpy_python_path,
         len(settings.allowed_roots),
         settings.scratch_gdb,
         settings.tool_timeout_s,
+        settings.max_workers,
     )
-    return settings, guard, backend, log
+    return Runtime(settings=settings, guard=guard, backend=backend, log=log)
 
 
-SETTINGS, GUARD, BACKEND, LOG = _bootstrap()
+@functools.lru_cache(maxsize=1)
+def get_runtime() -> Runtime:
+    """Lazy, memoized accessor for the composition root.
+
+    The first caller pays environment resolution; every subsequent call
+    returns the same frozen ``Runtime``. Tests may call
+    ``get_runtime.cache_clear()`` to re-resolve under a patched environment.
+    """
+    return _bootstrap()
+
 
 mcp: Final[FastMCP] = FastMCP("arcgis-pro-bridge")
 
@@ -134,10 +170,10 @@ def _unwrap(result: WorkerResult) -> dict[str, Any]:
     raise ToolExecutionError(detail)
 
 
-def _default_output_path(tool_value: str, job_id: str) -> str:
+def _default_output_path(settings: Settings, tool_value: str, job_id: str) -> str:
     """Deterministic auto-name inside the configured scratch GDB."""
     safe_tool = tool_value.split("_", 1)[0].lower()  # 'Buffer_analysis' -> 'buffer'
-    return str(SETTINGS.scratch_gdb / f"{safe_tool}_{job_id}")
+    return str(settings.scratch_gdb / f"{safe_tool}_{job_id}")
 
 
 # --------------------------------------------------------------------------- #
@@ -153,16 +189,20 @@ async def health_check() -> dict[str, Any]:
     interpreter version plus configuration summary. Use this first when
     diagnosing connectivity.
     """
+    rt = get_runtime()
     job = WorkerJob(op="ping", payload={}, job_id=new_job_id())
-    result = await BACKEND.run_job(job, timeout_s=min(SETTINGS.tool_timeout_s, 120))
+    result = await rt.backend.run_job(
+        job, timeout_s=min(rt.settings.tool_timeout_s, 120)
+    )
     payload = _unwrap(result)
     return {
         "server": "ok",
         "worker_python": payload.get("python"),
-        "worker_interpreter": str(SETTINGS.arcpy_python_path),
-        "allowed_roots": [str(r) for r in SETTINGS.allowed_roots],
-        "scratch_gdb": str(SETTINGS.scratch_gdb),
-        "tool_timeout_s": SETTINGS.tool_timeout_s,
+        "worker_interpreter": str(rt.settings.arcpy_python_path),
+        "allowed_roots": [str(r) for r in rt.settings.allowed_roots],
+        "scratch_gdb": str(rt.settings.scratch_gdb),
+        "tool_timeout_s": rt.settings.tool_timeout_s,
+        "max_workers": rt.settings.max_workers,
     }
 
 
@@ -180,9 +220,10 @@ async def list_layers(
     Returns:
         ListLayersOutput as JSON: workspace, layers[], elapsed_seconds.
     """
+    rt = get_runtime()
     try:
         inp = ListLayersInput(workspace=workspace, dataset_filter=dataset_filter)
-        GUARD.validate_read(inp.workspace)  # Layer-A precheck: fail before spawn
+        rt.guard.validate_read(inp.workspace)  # Layer-A precheck: fail before spawn
     except (ValidationError, PathSecurityError) as exc:
         raise ToolExecutionError(f"[validation] {exc}") from exc
 
@@ -191,8 +232,8 @@ async def list_layers(
         payload=inp.model_dump(mode="json"),
         job_id=new_job_id(),
     )
-    LOG.info("list_layers %s: workspace=%s", job.job_id, inp.workspace)
-    result = await BACKEND.run_job(job, timeout_s=SETTINGS.tool_timeout_s)
+    rt.log.info("list_layers %s: workspace=%s", job.job_id, inp.workspace)
+    result = await rt.backend.run_job(job, timeout_s=rt.settings.tool_timeout_s)
     return _unwrap(result)
 
 
@@ -230,15 +271,16 @@ async def execute_spatial_tool(
     except (ValidationError, ValueError) as exc:
         raise ToolExecutionError(f"[validation] {exc}") from exc
 
+    rt = get_runtime()
     job_id = new_job_id()
     try:
         # Layer-A path discipline: resolve + authorize BEFORE spawning.
-        GUARD.validate_read(inp.in_features)
+        rt.guard.validate_read(inp.in_features)
         resolved_out = str(
-            GUARD.validate_write(
+            rt.guard.validate_write(
                 inp.out_features
                 if inp.out_features is not None
-                else _default_output_path(inp.tool.value, job_id),
+                else _default_output_path(rt.settings, inp.tool.value, job_id),
                 overwrite=inp.overwrite,
             )
         )
@@ -250,7 +292,7 @@ async def execute_spatial_tool(
         mode="json"
     )
     job = WorkerJob(op="execute_spatial_tool", payload=payload, job_id=job_id)
-    LOG.info(
+    rt.log.info(
         "execute_spatial_tool %s: tool=%s in=%s out=%s overwrite=%s",
         job_id,
         inp.tool.value,
@@ -258,7 +300,7 @@ async def execute_spatial_tool(
         resolved_out,
         inp.overwrite,
     )
-    result = await BACKEND.run_job(job, timeout_s=SETTINGS.tool_timeout_s)
+    result = await rt.backend.run_job(job, timeout_s=rt.settings.tool_timeout_s)
     return _unwrap(result)
 
 
@@ -278,11 +320,12 @@ def _make_catalog_proxy(spec: ToolSpec) -> Any:
     """
 
     async def _proxy(params: Any) -> dict[str, Any]:  # real schema set below
+        rt = get_runtime()
         try:
             inp = spec.input_model.model_validate(
                 params if isinstance(params, dict) else params.model_dump()
             )
-            apply_path_guard(inp, GUARD)  # Layer-A precheck: fail before spawn
+            apply_path_guard(inp, rt.guard)  # Layer-A precheck: fail before spawn
         except (ValidationError, PathSecurityError) as exc:
             raise ToolExecutionError(f"[validation] {exc}") from exc
 
@@ -291,8 +334,10 @@ def _make_catalog_proxy(spec: ToolSpec) -> Any:
             payload={"tool": spec.name, "args": inp.model_dump(mode="json")},
             job_id=new_job_id(),
         )
-        LOG.info("%s %s: dispatch (%s)", spec.name, job.job_id, spec.category.value)
-        return _unwrap(await BACKEND.run_job(job, timeout_s=SETTINGS.tool_timeout_s))
+        rt.log.info("%s %s: dispatch (%s)", spec.name, job.job_id, spec.category.value)
+        return _unwrap(
+            await rt.backend.run_job(job, timeout_s=rt.settings.tool_timeout_s)
+        )
 
     _proxy.__name__ = spec.name
     _proxy.__doc__ = spec.description
@@ -318,8 +363,14 @@ _register_catalog_tools()
 
 
 def main() -> None:
-    """Run the stdio server. Blocking; owns the process from here on."""
-    LOG.info("arcgis-pro-bridge starting on stdio transport.")
+    """Run the stdio server. Blocking; owns the process from here on.
+
+    Resolves the runtime EAGERLY: a misconfigured deployment must die with
+    an actionable stderr message before the MCP handshake, while imports
+    (tests, tooling) stay side-effect free.
+    """
+    rt = get_runtime()
+    rt.log.info("arcgis-pro-bridge starting on stdio transport.")
     mcp.run(transport="stdio")
 
 

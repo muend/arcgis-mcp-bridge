@@ -79,6 +79,7 @@ class SubprocessBackend:
         self,
         arcpy_python: Path,
         project_root: Path,
+        max_workers: int = 2,
     ) -> None:
         """Configure the bridge.
 
@@ -88,6 +89,12 @@ class SubprocessBackend:
             project_root: Directory containing the ``arcgis_mcp`` package,
                 injected into the worker's ``PYTHONPATH`` so
                 ``-m arcgis_mcp.worker`` resolves regardless of cwd.
+            max_workers: Concurrency ceiling for simultaneously live worker
+                subprocesses (``ARCGIS_MCP_MAX_WORKERS``). Each worker pays
+                a full ``import arcpy`` (hundreds of MB) and may check out
+                finite Esri extension license seats, so parallel agent
+                fan-out without a bound is an OOM / ``ExtensionLicenseError``
+                stampede. Excess requests queue FIFO on the semaphore.
         """
         if not arcpy_python.is_file():
             raise FileNotFoundError(f"Worker interpreter not found: {arcpy_python}")
@@ -95,19 +102,35 @@ class SubprocessBackend:
             raise FileNotFoundError(
                 f"arcgis_mcp package not found under: {project_root}"
             )
+        if max_workers < 1:
+            raise ValueError(f"max_workers must be >= 1, got {max_workers}")
         self._python: Final[Path] = arcpy_python
         self._root: Final[Path] = project_root
+        #: Orchestration-boundary gate: bounds live subprocesses, not queued
+        #: requests — callers await their turn instead of stampeding arcpy.
+        self._gate: Final[asyncio.Semaphore] = asyncio.Semaphore(max_workers)
 
     # ------------------------------------------------------------------ #
     # ExecutionBackend implementation
     # ------------------------------------------------------------------ #
 
     async def run_job(self, job: WorkerJob, *, timeout_s: int) -> WorkerResult:
-        """Spawn the worker, feed one NDJSON frame, await one NDJSON frame.
+        """Acquire a worker slot, then spawn/feed/await one NDJSON exchange.
+
+        Concurrency discipline: the semaphore is held for the worker's full
+        lifetime (spawn → communicate → reap), so at most ``max_workers``
+        arcpy interpreters exist at any instant. Queue wait time does NOT
+        count against ``timeout_s`` — the timeout measures geoprocessing,
+        not orchestration backpressure.
 
         Every exit path returns a WorkerResult; nothing worker-related
         escapes as an exception (error-boundary guarantee).
         """
+        async with self._gate:
+            return await self._run_one(job, timeout_s=timeout_s)
+
+    async def _run_one(self, job: WorkerJob, *, timeout_s: int) -> WorkerResult:
+        """Spawn the worker, feed one NDJSON frame, await one NDJSON frame."""
         frame = job.model_dump_json() + "\n"
         LOG.info("job %s: dispatch op=%s", job.job_id, job.op)
 
