@@ -1,28 +1,24 @@
 cff-version: 1.2.0
-message: >-
-  If you use arcgis-mcp-bridge in your research, please cite it using the
-  metadata below.
-title: "arcgis-mcp-bridge: a secure Model Context Protocol server for ArcGIS Pro"
-type: software
-authors:
-  - name: muend
-abstract: >-
-  A secure, local-first, asynchronous MCP (Model Context Protocol) server
-  exposing ArcGIS Pro's ArcPy geoprocessing engine to large-language-model
-  hosts over stdio JSON-RPC. Provides 100 declarative geoprocessing tools
-  across 10 GIS verticals, two-process arcpy isolation, PathGuard filesystem
-  sandboxing, and Pydantic v2 contract validation in both processes.
+message: "If you use this software in academic work, please cite it."
+title: arcgis-mcp-bridge
+abstract: >
+  A secure, local-first, asynchronous Model Context Protocol (MCP)
+  server exposing ArcGIS Pro's ArcPy engine over stdio JSON-RPC.
+  Provides 100 declarative geoprocessing tools across 10 verticals
+  with two-process isolation and a PathGuard filesystem sandbox.
+version: 0.5.0
+date-released: "2026-06-11"
+license: Apache-2.0
+repository-code: https://github.com/muend/arcgis-mcp-bridge
 keywords:
   - GIS
-  - ArcGIS
-  - arcpy
+  - ArcGIS Pro
   - Model Context Protocol
-  - MCP
   - GeoAI
+  - arcpy
   - spatial analysis
-  - geoprocessing
-license: Apache-2.0
-repository-code: "https://github.com/muend/arcgis-mcp-bridge"
-url: "https://github.com/muend/arcgis-mcp-bridge"
-version: 0.5.0
-date-released: 2026-06-11
+  - LLM tools
+authors:
+  - alias: muend
+    given-names: Muhammed Enes
+    family-names: Duran

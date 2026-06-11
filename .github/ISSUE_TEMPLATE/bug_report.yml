@@ -1,58 +1,60 @@
-name: Bug report
-description: Report a defect in arcgis-mcp-bridge
-title: "[bug]: "
-labels: ["bug", "triage"]
+name: Bug Report
+description: Something is broken or behaving unexpectedly.
+labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for the report. Structured error frames make triage fast —
-        please paste the full JSON frame if you have one.
-  - type: input
-    id: arcgis-version
+        Before opening an issue, run `health_check` to confirm the
+        full server→worker pipeline is reachable.
+  - type: dropdown
+    id: arcgis-pro-version
     attributes:
       label: ArcGIS Pro version
-      description: Help > About in ArcGIS Pro (e.g. 3.3.1).
-      placeholder: "3.3.1"
-    validations:
-      required: true
-  - type: input
-    id: tool-name
-    attributes:
-      label: Target tool name
-      description: The MCP tool that misbehaved (e.g. calculate_field, raster_calculator, health_check).
-      placeholder: "calculate_field"
-    validations:
-      required: true
-  - type: textarea
-    id: error-frame
-    attributes:
-      label: Structured error JSON frame
-      description: |
-        The structured error returned to the MCP host, e.g.
-        `{"kind": "security", "message": "...", "gp_messages": [...]}`.
-        Redact any private paths.
-      render: json
-    validations:
-      required: true
-  - type: textarea
-    id: repro
-    attributes:
-      label: Steps to reproduce
-      description: Exact tool call (arguments included) and what you expected instead.
+      options:
+        - "3.1"
+        - "3.2"
+        - "3.3"
+        - "3.4"
+        - Other (specify in description)
     validations:
       required: true
   - type: input
     id: python-version
     attributes:
-      label: Bridge interpreter Python version
-      placeholder: "3.11.8 (arcgis-mcp-env)"
+      label: Python version in arcgis-mcp-env
+      placeholder: "3.11.x"
     validations:
-      required: false
-  - type: textarea
-    id: logs
+      required: true
+  - type: input
+    id: tool-name
     attributes:
-      label: Relevant server log excerpt (stderr / ARCGIS_MCP_LOG_FILE)
-      render: text
+      label: Tool name
+      placeholder: "buffer_features"
     validations:
-      required: false
+      required: true
+  - type: textarea
+    id: error-frame
+    attributes:
+      label: Structured error frame (JSON)
+      description: >
+        Paste the full JSON error response. If the error is a crash
+        with no frame returned, paste the server stderr log instead.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: >
+        Exact tool arguments that trigger the issue.
+        Redact real paths — replace with placeholder roots.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true

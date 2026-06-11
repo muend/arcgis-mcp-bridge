@@ -46,6 +46,8 @@ dev = ["ruff", "mypy", "pytest", "pytest-cov"]
 
 [project.urls]
 Repository = "https://github.com/muend/arcgis-mcp-bridge"
+"Bug Tracker" = "https://github.com/muend/arcgis-mcp-bridge/issues"
+Changelog = "https://github.com/muend/arcgis-mcp-bridge/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 include = ["arcgis_mcp*"]

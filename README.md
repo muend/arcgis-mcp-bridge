@@ -40,9 +40,27 @@ Hand-drawn parcel boundary → photo → geodatabase feature class.
 ORB+RANSAC image registration, HSV ink segmentation, direct GDB commit.
 No manual digitizing required.
 
-*[Demo GIF placeholder]*
+> **Demo coming soon.** To preview the sketch-to-GIS pipeline:
+> 1. Draw a polygon on paper and photograph it.
+> 2. Ask Claude: *"Use extract_sketch_to_gis to register this photo
+>    against my basemap and commit the result to my GDB."*
+> 3. The feature class appears in ArcGIS Pro — no manual digitizing.
 
 ---
+
+## 00 — Example Prompts
+
+After `health_check` succeeds, talk to Claude naturally:
+
+```
+"Buffer all parcels in my GDB by 50 meters and save to scratch."
+"List all feature classes in C:\GIS\city.gdb starting with 'road_'."
+"Dissolve the neighborhoods layer by district_id."
+"Run kernel density on crime_points with a 500-meter search radius."
+"Calculate slope and aspect from the DEM at C:\GIS\dem.tif."
+"Find the 3 nearest facilities to each incident in my network dataset."
+"Check geometry on all feature classes in my GDB and repair errors."
+```
 
 ## 01 — Core Architecture & Philosophy
 
@@ -264,6 +282,21 @@ server→worker pipeline without importing arcpy.
 
 ---
 
-## 06 — License
+## 06 — Compatibility
+
+| ArcGIS Pro | Python (arcgispro-py3) | Status |
+|---|---|---|
+| 3.1 | 3.9 | ✅ Tested |
+| 3.2 | 3.9 | ✅ Tested |
+| 3.3 | 3.11 | ✅ Tested — reference platform |
+| 3.4 | 3.11 | ⚠ Community-reported, not CI-verified |
+
+**Windows only.** ArcPy is Windows-exclusive. Layer A runs on any
+platform for development (MagicMock injection), but Layer B requires
+a licensed ArcGIS Pro installation on Windows.
+
+---
+
+## 07 — License
 
 Apache License 2.0. See [LICENSE](LICENSE).

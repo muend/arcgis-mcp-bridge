@@ -1,19 +1,11 @@
-name: Feature request
-description: Propose a new tool or capability
-title: "[feat]: "
-labels: ["enhancement", "triage"]
+name: Feature Request
+description: Propose a new tool or improvement.
+labels: ["enhancement"]
 body:
-  - type: markdown
-    attributes:
-      value: |
-        New tools follow the contracts → tools → registry → verify pipeline
-        described in CONTRIBUTING.md. Telling us the vertical up front routes
-        the request to the right category module.
   - type: dropdown
-    id: gis-domain
+    id: vertical
     attributes:
-      label: GIS domain (vertical)
-      description: Which of the 10 catalog verticals does this belong to?
+      label: Tool vertical
       options:
         - map_layer_management
         - data_management
@@ -25,35 +17,31 @@ body:
         - editing_topology
         - network_analysis
         - spatial_statistics
+        - new vertical
     validations:
       required: true
   - type: input
-    id: arcpy-counterpart
+    id: arcpy-function
     attributes:
-      label: ArcPy counterpart
-      description: The exact arcpy function/tool this would wrap (exact Esri casing).
-      placeholder: "arcpy.analysis.SummarizeNearby"
-    validations:
-      required: false
-  - type: textarea
-    id: problem
-    attributes:
-      label: Problem / workflow
-      description: What GIS workflow is blocked or painful today?
+      label: ArcPy function
+      description: Which arcpy function should this wrap?
+      placeholder: "arcpy.analysis.GenerateNearTable"
     validations:
       required: true
   - type: textarea
-    id: proposal
+    id: use-case
     attributes:
-      label: Proposed tool surface
-      description: Sketch the inputs (paths, parameters) and the result payload.
+      label: Use case
+      description: >
+        What workflow does this enable? What would you ask Claude
+        to do that currently requires manual ArcGIS Pro steps?
     validations:
-      required: false
+      required: true
   - type: checkboxes
-    id: safety
+    id: destructive
     attributes:
-      label: Safety considerations
+      label: Mutation safety
       options:
-        - label: This operation mutates or deletes data (needs a confirm gate)
-        - label: This operation requires an Esri extension license (Spatial/Network)
-        - label: This operation accepts a free-form expression string
+        - label: >
+            This tool mutates its input dataset and should require
+            confirm: true.
