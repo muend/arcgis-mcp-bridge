@@ -111,7 +111,7 @@ disallow_untyped_decorators = false
 
 # Closed-source / binary / optionally-installed dependencies: no stubs exist.
 [[tool.mypy.overrides]]
-module = ["arcpy", "arcpy.*", "cv2", "cv2.*", "fastmcp", "fastmcp.*", "mcp", "mcp.*"]
+module = ["arcpy", "arcpy.*", "cv2", "cv2.*", "numpy", "numpy.*", "fastmcp", "fastmcp.*", "mcp", "mcp.*"]
 ignore_missing_imports = true
 
 # Worker functions intentionally traffic in `Any` (the arcpy module object is
