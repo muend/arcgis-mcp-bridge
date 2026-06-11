@@ -38,9 +38,9 @@ engine to Claude Desktop and other MCP hosts over stdio JSON-RPC.
 |---|---|---|---|
 | Tools | **100** | ~15 | ~10 |
 | Transport | stdio JSON-RPC | file-based IPC | Named Pipes |
-| Security | PathGuard sandbox | none | none |
-| arcpy isolation | **two-process** | single process | Add-In in-process |
-| CI (no ArcGIS) | ✅ | ❌ | ❌ |
+| Security Architecture | Documented PathGuard sandbox | None specified / default host access | None specified / default host access |
+| arcpy Isolation | **Two-process architecture** | Single process execution | Add-In in-process execution |
+| CI (Offline Verification) | ✅ Supported | ❌ Not available | ❌ Not available |
 | License | Apache-2.0 | MIT | MIT |
 
 ---
@@ -238,17 +238,42 @@ and no subprocess is ever orchestrated for it.
 
 ---
 
-## 05 — Deployment
+## 05 — 📦 Installation
+
+Choose the onboarding pipeline that fits your operational objective:
+
+### Path A: Pure PyPI Installation (Recommended for Quick Deployments)
+
+Ideal if you want to use the server out-of-the-box via Claude Desktop
+without cloning source files.
+
+```bash
+pip install arcgis-mcp-bridge
+# Execute the unified setup console command to clone your environment
+arcgis-mcp-setup
+```
+
+### Path B: Git Clone & Core Development (Recommended for GIS Contributors)
+
+Ideal if you want to inspect source code, add new tools, modify contracts,
+or run the local test runners.
 
 ```bash
 git clone https://github.com/muend/arcgis-mcp-bridge.git
 cd arcgis-mcp-bridge
-python setup_env.py            # idempotent: clones arcgispro-py3 -> arcgis-mcp-env
+python arcgis_mcp/setup_env.py
+pip install -e ".[dev,vision]"
 ```
 
-`setup_env.py` accepts exactly `--env-name` (default `arcgis-mcp-env`) and
-`--dry-run`; set `ARCGIS_CONDA_EXE` if conda is not on `PATH`. It emits a
-JSON report whose `python_exe` value becomes `ARCPY_PYTHON_PATH`.
+> **Note:** To enable the hand-drawn sketch-to-GIS pipeline, install using
+> the `[vision]` or `[dev,vision]` flag to pull downstream dependencies like
+> `opencv-python` and `scikit-image` into your environment.
+
+Both paths share the same setup engine (`arcgis-mcp-setup` ≡
+`python -m arcgis_mcp.setup_env`): idempotent, accepts `--env-name`
+(default `arcgis-mcp-env`) and `--dry-run`; set `ARCGIS_CONDA_EXE` if conda
+is not on `PATH`. It emits a JSON report whose `python_exe` value becomes
+`ARCPY_PYTHON_PATH`.
 
 **Worker integrity — `ARCPY_PYTHON_PATH` must resolve the package stack.**
 Layer B is launched as `-m arcgis_mcp.worker`, so its interpreter must
@@ -272,16 +297,45 @@ Install the full stack into that environment
 | `ARCGIS_MCP_LOG_FILE` / `_LOG_LEVEL` / `_TOOL_TIMEOUT` | no | Logging + per-job ceiling |
 | `ARCGIS_MCP_MAX_WORKERS` | no | Concurrent arcpy worker ceiling (default 2) — protects license seats and RAM |
 
+### Claude Desktop Configuration
+
+Pick the block that matches how you installed the server.
+(`ARCPY_PYTHON_PATH` is **required** in both variants — it is the licensed
+worker interpreter reported by the setup command's JSON output.)
+
+##### Option 1: Global/PyPI Installation Config
+
 ```json
 {
   "mcpServers": {
-    "arcgis-pro": {
-      "command": "C:\\...\\envs\\arcgis-mcp-env\\python.exe",
-      "args": ["-m", "arcgis_mcp.server"],
+    "arcgis-mcp-bridge": {
+      "command": "arcgis-mcp-server",
+      "env": {
+        "ARCPY_PYTHON_PATH": "C:\\...\\envs\\arcgis-mcp-env\\python.exe",
+        "ARCGIS_MCP_ALLOWED_ROOTS": "C:\\GIS\\Data;C:\\Workspace",
+        "ARCGIS_MCP_MAX_WORKERS": "2"
+      }
+    }
+  }
+}
+```
+
+##### Option 2: Local Git Clone Config
+
+```json
+{
+  "mcpServers": {
+    "arcgis-mcp-bridge": {
+      "command": "C:\\...\\envs\\arcgis-mcp-env\\Scripts\\python.exe",
+      "args": [
+        "-m",
+        "arcgis_mcp.server"
+      ],
       "env": {
         "PYTHONPATH": "C:\\path\\to\\arcgis-mcp-bridge",
         "ARCPY_PYTHON_PATH": "C:\\...\\envs\\arcgis-mcp-env\\python.exe",
-        "ARCGIS_MCP_ALLOWED_ROOTS": "C:\\Users\\you\\GIS-Projects"
+        "ARCGIS_MCP_ALLOWED_ROOTS": "C:\\GIS\\Data;C:\\Workspace",
+        "ARCGIS_MCP_MAX_WORKERS": "2"
       }
     }
   }

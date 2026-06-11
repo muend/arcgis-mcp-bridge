@@ -42,7 +42,10 @@ from typing import Any, Final, Optional
 try:  # official SDK packaging
     from mcp.server.fastmcp import FastMCP
 except ImportError:  # standalone fastmcp 2.x packaging
-    from fastmcp import FastMCP  # type: ignore[assignment]
+    # Codeless ignore by design: the fired code differs per environment
+    # (no-redef when mcp stubs resolve, assignment when only fastmcp does),
+    # and strict mode's unused-ignore would reject the unfired one.
+    from fastmcp import FastMCP  # type: ignore
 
 from pydantic import ValidationError
 

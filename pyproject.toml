@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "arcgis-mcp-bridge"
-version = "0.5.0"
+version = "0.5.1"
 description = "A secure, local-first, asynchronous MCP server exposing ArcGIS Pro's ArcPy engine over stdio JSON-RPC."
 readme = "README.md"
 # Floor is 3.11 (the ArcPy/Layer B interpreter); Layer A may run newer (3.13).
@@ -41,8 +41,13 @@ dependencies = [
 
 [project.optional-dependencies]
 # Vision stack is only needed by the Layer B worker for extract_sketch_to_gis.
+# Install explicitly:  pip install -e ".[vision]"  or  pip install -e ".[dev,vision]"
 vision = ["opencv-python-headless", "numpy"]
 dev = ["ruff", "mypy", "pytest", "pytest-cov"]
+
+[project.scripts]
+arcgis-mcp-server = "arcgis_mcp.server:main"
+arcgis-mcp-setup = "arcgis_mcp.setup_env:main"
 
 [project.urls]
 Repository = "https://github.com/muend/arcgis-mcp-bridge"
