@@ -6,6 +6,10 @@
 ![Tools](https://img.shields.io/badge/tools-100-orange)
 ![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)
 
+
+
+# arcgis-mcp-bridge
+
 ## 📦 Installation
 
 You can install the official release of `arcgis-mcp-bridge` directly from [PyPI (Python Package Index)](https://pypi.org/project/arcgis-mcp-bridge/):
@@ -14,8 +18,6 @@ You can install the official release of `arcgis-mcp-bridge` directly from [PyPI 
 pip install arcgis-mcp-bridge
 
 ```
-
-# arcgis-mcp-bridge
 
 **100 declarative geoprocessing tools. Two isolated processes. One security floor.**
 
