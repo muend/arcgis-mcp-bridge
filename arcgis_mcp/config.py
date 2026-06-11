@@ -25,6 +25,10 @@ ARCGIS_MCP_SCRATCH_GDB   (optional) Default output workspace. Defaults to
 ARCGIS_MCP_LOG_FILE      (optional) Rotating log file path.
 ARCGIS_MCP_LOG_LEVEL     (optional) DEBUG/INFO/WARNING/ERROR. Default INFO.
 ARCGIS_MCP_TOOL_TIMEOUT  (optional) Per-tool wall-clock timeout in seconds.
+ARCGIS_MCP_MAX_WORKERS   (optional) Maximum number of concurrent arcpy worker
+                         subprocesses (asyncio.Semaphore bound). Default 2.
+                         Each worker costs one Esri license seat checkout and
+                         hundreds of MB of RAM — keep this small.
 ANTHROPIC_API_KEY        (optional) NOT required for stdio MCP operation —
                          the host (Claude Desktop) owns model access. Loaded
                          only for future out-of-band features; treated as a
@@ -45,6 +49,9 @@ _LOG_FORMAT: Final[str] = (
     "%(asctime)s [%(levelname)s] %(name)s (%(module)s:%(lineno)d): %(message)s"
 )
 _DEFAULT_TOOL_TIMEOUT_S: Final[int] = 600
+
+#: Conservative concurrency default: two simultaneous arcpy workers.
+_DEFAULT_MAX_WORKERS: Final[int] = 2
 _LOG_MAX_BYTES: Final[int] = 5 * 1024 * 1024
 _LOG_BACKUP_COUNT: Final[int] = 3
 
@@ -89,6 +96,7 @@ class Settings:
     log_file: Path | None
     log_level: int
     tool_timeout_s: int
+    max_workers: int = _DEFAULT_MAX_WORKERS
     anthropic_api_key: str | None = field(
         repr=False, default=None
     )  # never in repr/logs
@@ -140,6 +148,17 @@ class Settings:
                 f"got {timeout_raw!r}"
             ) from exc
 
+        workers_raw = _optional_env("ARCGIS_MCP_MAX_WORKERS", str(_DEFAULT_MAX_WORKERS))
+        try:
+            max_workers = int(workers_raw)
+            if max_workers <= 0:
+                raise ValueError
+        except ValueError as exc:
+            raise ConfigError(
+                f"ARCGIS_MCP_MAX_WORKERS must be a positive integer, "
+                f"got {workers_raw!r}"
+            ) from exc
+
         log_file_raw = _optional_env("ARCGIS_MCP_LOG_FILE")
 
         return cls(
@@ -149,6 +168,7 @@ class Settings:
             log_file=Path(log_file_raw).expanduser() if log_file_raw else None,
             log_level=level,
             tool_timeout_s=timeout_s,
+            max_workers=max_workers,
             anthropic_api_key=_optional_env("ANTHROPIC_API_KEY") or None,
         )
 

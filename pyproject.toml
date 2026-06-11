@@ -16,6 +16,24 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 authors = [{ name = "muend" }]
+keywords = [
+    "arcgis",
+    "arcpy",
+    "mcp",
+    "gis",
+    "geoai",
+    "model-context-protocol",
+    "spatial-analysis",
+    "esri",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: GIS",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
 dependencies = [
     "fastmcp",
     "pydantic>=2.0",

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import ClassVar, List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .base import PathRole, ToolInput
 
@@ -76,9 +76,38 @@ class DeleteFieldInput(DatasetInput):
 
 
 class CalculateFieldInput(DatasetInput):
+    """Field calculation contract with an expression-channel safety floor.
+
+    Security rationale: ``expression_type="PYTHON3"`` hands the expression to
+    a live Python evaluator inside the worker process — a prompt-injected
+    expression is arbitrary code execution on the host. The default is
+    therefore ``ARCADE`` (Esri's sandboxed expression language, no OS
+    access), and PYTHON3 is only honored behind an explicit ``confirm=true``
+    opt-in enforced both here (Layer A, fail before spawn) and by the
+    dispatcher's destructive-tool gate (Layer B, trust no parent).
+    """
+
     field_name: str = Field(..., min_length=1, max_length=64)
     expression: str = Field(..., min_length=1, max_length=4000)
-    expression_type: Literal["PYTHON3", "ARCADE", "SQL"] = "PYTHON3"
+    expression_type: Literal["PYTHON3", "ARCADE", "SQL"] = "ARCADE"
+    confirm: bool = Field(
+        default=False,
+        description=(
+            "Must be true: calculate_field irreversibly overwrites column "
+            "values, and PYTHON3 expressions execute code in the worker."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _python3_requires_confirm(self) -> "CalculateFieldInput":
+        """PYTHON3 = code execution; refuse it without an explicit opt-in."""
+        if self.expression_type == "PYTHON3" and not self.confirm:
+            raise ValueError(
+                "expression_type='PYTHON3' executes arbitrary Python inside "
+                "the worker process. Re-issue with confirm=true, or use the "
+                "sandboxed 'ARCADE' expression type (the default)."
+            )
+        return self
 
 
 class FieldDef(BaseModel):

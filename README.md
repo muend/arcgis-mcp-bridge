@@ -1,3 +1,9 @@
+![CI](https://github.com/muend/arcgis-mcp-bridge/actions/workflows/ci.yml/badge.svg)
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
+![License](https://img.shields.io/badge/license-Apache--2.0-green)
+![Tools](https://img.shields.io/badge/tools-100-orange)
+![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)
+
 # arcgis-mcp-bridge
 
 **100 declarative geoprocessing tools. Two isolated processes. One security floor.**
@@ -12,6 +18,29 @@ engine to Claude Desktop and other MCP hosts over stdio JSON-RPC.
 | Static analysis | Ruff clean · Mypy `strict` clean |
 | Transport | JSON-RPC 2.0 over stdio |
 | License | Apache-2.0 |
+
+---
+
+## Why arcgis-mcp-bridge?
+
+| Feature | arcgis-mcp-bridge | geo2004/MCP-ArcGISPro | nicogis (C#/.NET) |
+|---|---|---|---|
+| Tools | **100** | ~15 | ~10 |
+| Transport | stdio JSON-RPC | file-based IPC | Named Pipes |
+| Security | PathGuard sandbox | none | none |
+| arcpy isolation | **two-process** | single process | Add-In in-process |
+| CI (no ArcGIS) | ✅ | ❌ | ❌ |
+| License | Apache-2.0 | MIT | MIT |
+
+---
+
+## Highlight: Sketch → GIS Pipeline
+
+Hand-drawn parcel boundary → photo → geodatabase feature class.
+ORB+RANSAC image registration, HSV ink segmentation, direct GDB commit.
+No manual digitizing required.
+
+*[Demo GIF placeholder]*
 
 ---
 
@@ -76,16 +105,25 @@ not a process drop.
 
 ### Destructive Mutation Safety Floor
 
-Nine state-mutating tools refuse to run without an explicit
+Ten state-mutating tools refuse to run without an explicit
 `confirm: true` payload token. The gate fires in the dispatcher **before**
 the 10–30 s `arcpy` import is paid, and the registry refuses to even
 register a destructive spec whose contract lacks a `confirm` field:
 
 ```text
-append_features        define_projection      delete_dataset
-delete_field           delete_identical       extract_sketch_to_gis
-near_analysis          remove_layer_from_map  repair_geometry
+append_features        calculate_field        define_projection
+delete_dataset         delete_field           delete_identical
+extract_sketch_to_gis  near_analysis          remove_layer_from_map
+repair_geometry
 ```
+
+`calculate_field` carries an additional expression-channel floor: the
+default `expression_type` is **ARCADE** (Esri's sandboxed expression
+language), and `PYTHON3` — which executes code inside the worker — is
+rejected at the Layer-A contract boundary unless `confirm: true` is
+explicitly supplied. `raster_calculator` expressions are constrained to a
+pure map-algebra grammar (identifiers, numbers, operators; no quotes, no
+dunder access) by a contract validator.
 
 ---
 
@@ -203,6 +241,7 @@ Install the full stack into that environment
 | `ARCGIS_MCP_ALLOWED_ROOTS` | yes | `;`-separated PathGuard boundary roots |
 | `ARCGIS_MCP_SCRATCH_GDB` | no | Default output workspace |
 | `ARCGIS_MCP_LOG_FILE` / `_LOG_LEVEL` / `_TOOL_TIMEOUT` | no | Logging + per-job ceiling |
+| `ARCGIS_MCP_MAX_WORKERS` | no | Concurrent arcpy worker ceiling (default 2) — protects license seats and RAM |
 
 ```json
 {

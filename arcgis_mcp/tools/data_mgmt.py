@@ -252,10 +252,13 @@ _SPECS: tuple[tuple[str, str, type, Any, bool], ...] = (
     ),
     (
         "calculate_field",
-        "Compute field values with a PYTHON3/ARCADE/SQL expression (CalculateField).",
+        "Compute field values with an ARCADE (default, sandboxed) / SQL / "
+        "PYTHON3 expression (CalculateField). Overwrites column values: "
+        "requires confirm=true; PYTHON3 additionally executes code and is "
+        "refused without explicit confirmation.",
         c.CalculateFieldInput,
         _calculate_field,
-        False,
+        True,
     ),
     (
         "add_fields_batch",
