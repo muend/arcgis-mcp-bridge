@@ -18,8 +18,9 @@ Environment variables
 ---------------------
 ARCPY_PYTHON_PATH        (required) Absolute path to python.exe inside the
                          cloned ``arcgis-mcp-env`` conda environment.
-ARCGIS_MCP_ALLOWED_ROOTS (required) ``os.pathsep``-separated list of root
+ARCGIS_MCP_ALLOWED_ROOTS (optional) ``os.pathsep``-separated list of root
                          directories the server may read/write (PathGuard).
+                         Defaults to ~/Documents/ArcGIS/Projects if unset.
 ARCGIS_MCP_SCRATCH_GDB   (optional) Default output workspace. Defaults to
                          ``<first allowed root>/scratch.gdb``.
 ARCGIS_MCP_LOG_FILE      (optional) Rotating log file path.
@@ -110,7 +111,10 @@ class Settings:
                 f"ARCPY_PYTHON_PATH does not point to an existing file: {arcpy_python}"
             )
 
-        raw_roots = _require_env("ARCGIS_MCP_ALLOWED_ROOTS")
+        raw_roots = _optional_env("ARCGIS_MCP_ALLOWED_ROOTS")
+        if not raw_roots:
+            # Zero-config fallback: OS-standard ArcGIS Pro Projects directory.
+            raw_roots = str(Path.home() / "Documents" / "ArcGIS" / "Projects")
         roots: list[Path] = []
         for chunk in raw_roots.split(os.pathsep):
             chunk = chunk.strip()
