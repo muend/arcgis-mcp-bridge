@@ -3,6 +3,16 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 Versioning: [Semantic Versioning](https://semver.org/)
 
+## [0.5.1] — 2026-06-13
+
+### Fixed
+
+- `__init__.__version__` string `0.1.0`'dan `0.5.1`'e hizalandı.
+- `CITATION.cff` sürümü `pyproject.toml` ile eşleştirildi.
+- `SECURITY.md` desteklenen sürüm tablosu gerçek versiyon şemasına düzeltildi.
+
+[0.5.1]: https://github.com/muend/arcgis-mcp-bridge/compare/v0.5.0...v0.5.1
+
 ## [0.5.0] — 2026-06-11
 
 ### Added

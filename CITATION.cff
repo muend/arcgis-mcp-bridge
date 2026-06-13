@@ -6,8 +6,8 @@ abstract: >
   server exposing ArcGIS Pro's ArcPy engine over stdio JSON-RPC.
   Provides 100 declarative geoprocessing tools across 10 verticals
   with two-process isolation and a PathGuard filesystem sandbox.
-version: 0.5.0
-date-released: "2026-06-11"
+version: 0.5.1
+date-released: "2026-06-13"
 license: Apache-2.0
 repository-code: https://github.com/muend/arcgis-mcp-bridge
 keywords:
