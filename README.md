@@ -268,8 +268,12 @@ This project leverages **Astral `uv`** for light-speed, deterministic python env
 git clone https://github.com/muend/arcgis-mcp-bridge.git
 cd arcgis-mcp-bridge
 
-# 2. Bind your environment to the licensed ArcGIS Pro runtime with system site-packages
-uv venv --python "C:\Program Files\ArcGIS\Pro\bin\Python\envs\arcgispro-py3\python.exe" --system-site-packages
+# 2. Create an ISOLATED dev venv pinned to the ArcGIS Pro 3.11 interpreter.
+#    Do NOT pass --system-site-packages: Layer A never imports arcpy (the
+#    worker runs in a SEPARATE interpreter resolved via ARCPY_PYTHON_PATH), so
+#    inheriting ArcGIS's full site-packages only leaks interpreter-incompatible
+#    third-party packages into the pytest/mypy gates. Keep this venv hermetic.
+uv venv --python "C:\Program Files\ArcGIS\Pro\bin\Python\envs\arcgispro-py3\python.exe"
 
 # 3. Activate the virtual environment
 .venv\Scripts\activate
