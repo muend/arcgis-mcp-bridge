@@ -36,6 +36,7 @@ classifiers = [
 ]
 dependencies = [
     "fastmcp",
+    "mcp>=1.27.2",
     "pydantic>=2.0",
 ]
 
@@ -118,8 +119,23 @@ disallow_untyped_decorators = false
 
 # Closed-source / binary / optionally-installed dependencies: no stubs exist.
 [[tool.mypy.overrides]]
-module = ["arcpy", "arcpy.*", "cv2", "cv2.*", "numpy", "numpy.*", "fastmcp", "fastmcp.*", "mcp", "mcp.*"]
+module = ["cv2", "cv2.*", "numpy", "numpy.*", "fastmcp", "fastmcp.*", "mcp", "mcp.*"]
 ignore_missing_imports = true
+
+# arcpy DOES ship .pyi stubs, but ArcGIS Pro 3.x authors them in PEP 695
+# (3.12+) generic syntax while this gate targets 3.11 — parsing them crashes
+# mypy on any machine with ArcGIS Pro installed (hosted CI never sees arcpy,
+# so it was silently unaffected). arcpy is Layer-B-exclusive and injected as
+# a parameter, so Layer A already treats it as fully opaque: skip following
+# its stubs entirely, keeping local and CI type-checking identical.
+[[tool.mypy.overrides]]
+module = ["arcpy", "arcpy.*"]
+ignore_missing_imports = true
+# follow_imports alone does NOT apply to .pyi stubs; gp.pyi is a stub, so it
+# still got parsed. follow_imports_for_stubs=true extends the skip to stubs —
+# this pair is mypy's documented recipe for ignoring a broken third-party stub.
+follow_imports = "skip"
+follow_imports_for_stubs = true
 
 # Worker functions intentionally traffic in `Any` (the arcpy module object is
 # injected as a parameter precisely so Layer A never imports it). Strict mode

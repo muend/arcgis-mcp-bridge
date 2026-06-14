@@ -275,11 +275,13 @@ uv venv --python "C:\Program Files\ArcGIS\Pro\bin\Python\envs\arcgispro-py3\pyth
 .venv\Scripts\activate
 
 # 4. Sync all frozen dependencies deterministically using uv
-uv sync
+#    --locked fails fast if uv.lock has drifted from pyproject.toml,
+#    guaranteeing the install matches the committed resolution exactly.
+uv sync --locked
 ```
 
 > **Note:** To enable the hand-drawn sketch-to-GIS pipeline, install using the `[vision]` or `[dev,vision]` flag to pull downstream dependencies like `opencv-python` and `scikit-image` into your environment:
-> `uv sync --extra vision` or `uv sync --all-extras`
+> `uv sync --locked --extra vision` or `uv sync --locked --all-extras`
 
 Both paths share the same setup engine (`arcgis-mcp-setup` ≡
 `python -m arcgis_mcp.setup_env`): idempotent, accepts `--env-name`

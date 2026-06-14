@@ -74,3 +74,42 @@ jobs:
           ]
           assert not bad and not no_gate, (bad, no_gate)
           print(f"security-audit OK: {count()} specs")
+
+  # -------------------------------------------------------------------------
+  # uv-locked gate — proves the committed uv.lock resolves cleanly and that
+  # the project builds + passes lint/type/test under the uv ecosystem on BOTH
+  # supported interpreter floors (3.11 = ArcPy/Layer B; 3.12 = Layer A). The
+  # `--locked` flag fails the build the instant uv.lock drifts from
+  # pyproject.toml, turning the lockfile into an enforced contract instead of
+  # a hopeful artifact. Runs in parallel with the pip quality-gate above —
+  # neither job replaces the other; together they prove BOTH install paths.
+  # -------------------------------------------------------------------------
+  uv-locked-gate:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12"]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv (cached) and provision Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+
+      - name: Sync from lockfile (frozen — fails on lock/pyproject drift)
+        run: uv sync --all-extras --locked
+
+      - name: Lint (ruff)
+        run: uv run ruff check .
+
+      - name: Type-check (mypy strict)
+        run: uv run mypy arcgis_mcp
+
+      - name: Test suite (pytest)
+        run: uv run pytest -v
