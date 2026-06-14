@@ -5,6 +5,7 @@
 ![License](https://img.shields.io/badge/license-Apache--2.0-green)
 ![Tools](https://img.shields.io/badge/tools-100-orange)
 ![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)
+![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)
 
 
 
@@ -15,8 +16,10 @@
 You can install the official release of `arcgis-mcp-bridge` directly from [PyPI (Python Package Index)](https://pypi.org/project/arcgis-mcp-bridge/):
 
 ```bash
+# Traditional installation
 pip install arcgis-mcp-bridge
-
+# Modern, lightning-fast alternative
+uv pip install arcgis-mcp-bridge
 ```
 
 **100 declarative geoprocessing tools. Two isolated processes. One security floor.**
@@ -39,6 +42,7 @@ engine to Claude Desktop and other MCP hosts over stdio JSON-RPC.
 | Feature | arcgis-mcp-bridge | geo2004/MCP-ArcGISPro | nicogis (C#/.NET) |
 |---|---|---|---|
 | Tools | **100** | ~15 | ~10 |
+| **Dependency Sync** | **Deterministic (`uv.lock`)** | Imperative (`requirements.txt`) | Native Nuget |
 | Transport | stdio JSON-RPC | file-based IPC | Named Pipes |
 | Security Architecture | Documented PathGuard sandbox | None specified / default host access | None specified / default host access |
 | arcpy Isolation | **Two-process architecture** | Single process execution | Add-In in-process execution |
@@ -255,21 +259,27 @@ pip install arcgis-mcp-bridge
 arcgis-mcp-setup
 ```
 
-### Path B: Git Clone & Core Development (Recommended for GIS Contributors)
+### Path B: Git Clone & Deterministic Development (Recommended for GIS Contributors)
 
-Ideal if you want to inspect source code, add new tools, modify contracts,
-or run the local test runners.
+This project leverages **Astral `uv`** for light-speed, deterministic python environment management and synchronization.
 
 ```bash
+# 1. Clone the repository
 git clone https://github.com/muend/arcgis-mcp-bridge.git
 cd arcgis-mcp-bridge
-python arcgis_mcp/setup_env.py
-pip install -e ".[dev,vision]"
+
+# 2. Bind your environment to the licensed ArcGIS Pro runtime with system site-packages
+uv venv --python "C:\Program Files\ArcGIS\Pro\bin\Python\envs\arcgispro-py3\python.exe" --system-site-packages
+
+# 3. Activate the virtual environment
+.venv\Scripts\activate
+
+# 4. Sync all frozen dependencies deterministically using uv
+uv sync
 ```
 
-> **Note:** To enable the hand-drawn sketch-to-GIS pipeline, install using
-> the `[vision]` or `[dev,vision]` flag to pull downstream dependencies like
-> `opencv-python` and `scikit-image` into your environment.
+> **Note:** To enable the hand-drawn sketch-to-GIS pipeline, install using the `[vision]` or `[dev,vision]` flag to pull downstream dependencies like `opencv-python` and `scikit-image` into your environment:
+> `uv sync --extra vision` or `uv sync --all-extras`
 
 Both paths share the same setup engine (`arcgis-mcp-setup` ≡
 `python -m arcgis_mcp.setup_env`): idempotent, accepts `--env-name`
