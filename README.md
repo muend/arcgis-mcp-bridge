@@ -30,7 +30,7 @@ engine to Claude Desktop and other MCP hosts over stdio JSON-RPC.
 | | |
 |---|---|
 | Catalog | 100 tools · 10 verticals |
-| Tests | 6 registry/security smoke tests · 6/6 passing · arcpy mocked |
+| Tests | 81 unit tests · 81/81 passing · arcpy mocked |
 | Static analysis | Ruff clean · Mypy `strict` clean |
 | Transport | JSON-RPC 2.0 over stdio |
 | License | Apache-2.0 |
@@ -165,9 +165,11 @@ dunder access) by a contract validator.
 ## 03 — Automated Quality Gate & Testing
 
 **Scope, stated plainly:** the automated gate currently consists of
-**6 core registry and filesystem security smoke tests**. It validates the
-catalog's structural contracts and the PathGuard boundary — it does not
-claim multi-scenario validation of the 100 geoprocessing tools themselves,
+**81 unit tests** spanning the PathGuard boundary, the Pydantic contracts,
+the generic registry path-guard and registration invariants, the worker's
+error-boundary mapping, and `Settings` environment validation. It exercises
+the catalog's structural contracts and every security-critical seam — it does
+not claim multi-scenario validation of the 100 geoprocessing tools themselves,
 which execute against a licensed ArcGIS runtime that no CI runner has.
 
 **In-memory test architecture.** `tests/conftest.py` injects `MagicMock`
@@ -179,16 +181,26 @@ identically.
 
 **Test scopes.**
 
-- `tests/test_security.py` — the PathGuard boundary firewall, exercised
-  against real directories via pytest's `tmp_path` fixture: valid
-  reads/writes inside the sandbox pass; directory traversal
-  (`..`-segments) and out-of-root absolute paths are rejected. 4 tests.
-- `tests/test_registry.py` — registry stream integrity: `all_specs()`
-  consumed as a generator, counter-drift detection, and per-spec contract
-  validation through the canonical `input_model` attribute — every schema
-  must be a `ToolInput` subclass, every `path_fields` entry must reference
-  a real model field with a valid role, and every destructive spec must
-  carry its `confirm` gate. 2 tests.
+- `tests/test_security.py` & `tests/test_pathguard.py` — the PathGuard boundary
+  firewall, exercised against real directories via pytest's `tmp_path` fixture:
+  valid reads/writes inside the sandbox pass; traversal (`..`-segments), UNC,
+  relative, NUL-byte, reserved-device, over-length and out-of-root paths are
+  rejected; write discipline (ArcGIS dataset-name rules, overwrite opt-in) is
+  enforced. 30 tests.
+- `tests/test_contracts.py` — Pydantic contract enforcement: per-tool parameter
+  specs, cross-field validators, `frozen` / `extra="forbid"`, and the
+  `ok`-xor-`error` invariant on the IPC envelope. 15 tests.
+- `tests/test_registry.py` & `tests/test_registry_guard.py` — registry stream
+  integrity plus generic `apply_path_guard` enforcement and `register`
+  invariants — every schema must be a `ToolInput` subclass, every `path_fields`
+  entry must reference a valid role, duplicate names are rejected, and every
+  destructive spec must carry its `confirm` gate. 11 tests.
+- `tests/test_worker.py` — `process_frame` error-boundary mapping: every failure
+  class (validation, security, license, geoprocessing, internal) maps to its
+  distinct `WorkerError.kind`. 10 tests.
+- `tests/test_config.py` — `Settings.from_environment` validation: required
+  variables, directory/file checks, integer bounds, and the fail-fast on a
+  missing scratch geodatabase. 15 tests.
 
 The side-effect import `import arcgis_mcp.tools` in the registry test is
 what populates the catalog; it is `# noqa`-pinned so no linter ever strips
@@ -208,7 +220,7 @@ make lint            # ruff check, mutates nothing
 make type-check      # mypy --strict over arcgis_mcp/
 make security-audit  # live registry inspection: path roles + confirm gates
 make verify-all      # lint + type-check + security-audit, one gate
-python -m pytest     # 6/6
+python -m pytest     # 81/81
 ```
 
 ---

@@ -29,6 +29,7 @@ wheels/
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
+.pytest_tmp/
 .coverage
 htmlcov/
 
