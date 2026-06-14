@@ -22,7 +22,8 @@ ARCGIS_MCP_ALLOWED_ROOTS (optional) ``os.pathsep``-separated list of root
                          directories the server may read/write (PathGuard).
                          Defaults to ~/Documents/ArcGIS/Projects if unset.
 ARCGIS_MCP_SCRATCH_GDB   (optional) Default output workspace. Defaults to
-                         ``<first allowed root>/scratch.gdb``.
+                         ``<first allowed root>/scratch.gdb``. Must already
+                         exist — startup fails fast with a fix hint if missing.
 ARCGIS_MCP_LOG_FILE      (optional) Rotating log file path.
 ARCGIS_MCP_LOG_LEVEL     (optional) DEBUG/INFO/WARNING/ERROR. Default INFO.
 ARCGIS_MCP_TOOL_TIMEOUT  (optional) Per-tool wall-clock timeout in seconds.
@@ -133,6 +134,19 @@ class Settings:
             if scratch_raw
             else roots[0] / "scratch.gdb"
         )
+        # Fail fast in Layer A: the scratch GDB is the default output workspace
+        # for any tool invoked without an explicit path (see server._default_
+        # output_path). Layer A cannot create a file geodatabase (no arcpy), so
+        # a missing scratch would otherwise surface as a cryptic ArcPy failure
+        # deep inside a worker. Surface it here, at startup, with a fix.
+        if not scratch.exists():
+            raise ConfigError(
+                f"Scratch geodatabase does not exist: {scratch}. It is the "
+                "default output workspace for tools called without an explicit "
+                "output path. Create it (in ArcGIS Pro, or via "
+                "`arcpy.management.CreateFileGDB`), or set ARCGIS_MCP_SCRATCH_GDB "
+                "to an existing .gdb."
+            )
 
         level_name = _optional_env("ARCGIS_MCP_LOG_LEVEL", "INFO").upper()
         level = logging.getLevelName(level_name)
