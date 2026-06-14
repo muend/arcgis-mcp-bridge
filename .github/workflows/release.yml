@@ -1,15 +1,16 @@
 name: release
 
-# Publishes to PyPI when a version tag (e.g. v0.6.0) is pushed.
+# Publishes to PyPI when a version tag (e.g. v0.6.1) is pushed.
 #
-# Authentication uses PyPI Trusted Publishing (OIDC) — NO API token or secret
-# is stored in the repo. One-time setup on PyPI:
-#   PyPI -> your project -> Settings -> Publishing -> Add a pending publisher:
-#     Owner:        muend
-#     Repository:   arcgis-mcp-bridge
-#     Workflow:     release.yml
-#     Environment:  pypi
-# (For the very first publish, add it as a "pending publisher" before tagging.)
+# Authentication uses a PyPI API token stored as a GitHub Actions secret.
+# One-time setup:
+#   1. PyPI -> Account settings -> API tokens -> Add API token
+#      (scope it to the `arcgis-mcp-bridge` project now that it exists).
+#   2. GitHub -> repo -> Settings -> Secrets and variables -> Actions ->
+#      New repository secret -> name: PYPI_API_TOKEN, value: pypi-...
+#
+# `uv publish --check-url` skips files already present on the index, so
+# re-running a tag whose version is already published is a safe no-op.
 
 on:
   push:
@@ -23,11 +24,6 @@ jobs:
   pypi-publish:
     name: Build and publish to PyPI
     runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/p/arcgis-mcp-bridge
-    permissions:
-      id-token: write  # required for OIDC Trusted Publishing
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,4 +37,6 @@ jobs:
         run: uv build
 
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        run: uv publish --check-url https://pypi.org/simple/
