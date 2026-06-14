@@ -1,9 +1,8 @@
 name: release
 
-# Publishes to PyPI when a version tag (e.g. v0.6.1) is pushed.
+# On a version tag (e.g. v0.6.1): build, publish to PyPI, and cut a GitHub Release.
 #
-# Authentication uses a PyPI API token stored as a GitHub Actions secret.
-# One-time setup:
+# PyPI auth uses an API token stored as a GitHub Actions secret. One-time setup:
 #   1. PyPI -> Account settings -> API tokens -> Add API token
 #      (scope it to the `arcgis-mcp-bridge` project now that it exists).
 #   2. GitHub -> repo -> Settings -> Secrets and variables -> Actions ->
@@ -18,11 +17,11 @@ on:
       - "v*"
 
 permissions:
-  contents: read
+  contents: write  # build/publish need read; the GitHub Release step needs write
 
 jobs:
-  pypi-publish:
-    name: Build and publish to PyPI
+  release:
+    name: Build, publish to PyPI, and create the GitHub Release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -40,3 +39,9 @@ jobs:
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         run: uv publish --check-url https://pypi.org/simple/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: dist/*

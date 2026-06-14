@@ -20,7 +20,8 @@ Versioning: [Semantic Versioning](https://semver.org/)
   `Settings.from_environment` validation.
 - **Packaging pipeline**: a CI `build-dist` job builds the wheel + sdist and
   smoke-tests them in a clean environment; a tag-triggered `release.yml`
-  publishes to PyPI (token-authenticated).
+  publishes to PyPI (token-authenticated) and cuts a GitHub Release with the
+  built artifacts.
 
 ### Changed
 
