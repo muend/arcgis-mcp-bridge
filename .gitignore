@@ -30,6 +30,7 @@ wheels/
 .ruff_cache/
 .pytest_cache/
 .pytest_tmp/
+.smoke/
 .coverage
 htmlcov/
 

@@ -6,8 +6,8 @@ We actively monitor and patch security vulnerabilities. Since `arcgis-mcp-bridge
 
 | Version | Supported          |
 | ------- | ------------------ |
-| v0.5.x  | :white_check_mark: |
-| < v0.5.0  | :x:                |
+| v0.6.x  | :white_check_mark: |
+| < v0.6.0  | :x:                |
 
 ## Scope of Security Responsibility
 

@@ -51,7 +51,10 @@ from pydantic import ValidationError
 
 # Importing the tools package populates the registry with all catalog
 # verticals (each category module registers its ToolSpecs at import time).
-from . import tools as _catalog  # noqa: F401
+from . import (
+    __version__,
+    tools as _catalog,  # noqa: F401
+)
 from .config import ConfigError, Settings, configure_logging
 from .contracts import (
     ExecuteSpatialToolInput,
@@ -143,6 +146,10 @@ def get_runtime() -> Runtime:
 
 
 mcp: Final[FastMCP] = FastMCP("arcgis-pro-bridge")
+# FastMCP exposes no version parameter, so set it on the wrapped low-level
+# Server: this makes MCP `serverInfo.version` report the project version
+# (single-sourced from package metadata) instead of the mcp library's.
+mcp._mcp_server.version = __version__
 
 
 # --------------------------------------------------------------------------- #

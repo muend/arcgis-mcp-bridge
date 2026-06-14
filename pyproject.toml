@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "arcgis-mcp-bridge"
-version = "0.5.1"
+version = "0.6.0"
 description = "A secure, local-first, asynchronous MCP server exposing ArcGIS Pro's ArcPy engine over stdio JSON-RPC."
 readme = "README.md"
 # Floor is 3.11 (the ArcPy/Layer B interpreter); Layer A may run newer (3.13).

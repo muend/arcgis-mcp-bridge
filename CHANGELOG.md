@@ -3,6 +3,53 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 Versioning: [Semantic Versioning](https://semver.org/)
 
+## [0.6.0] — 2026-06-14
+
+### Added
+
+- **uv ecosystem**: committed `uv.lock`, a `uv sync --locked` install path, and
+  a CI `uv-locked-gate` job that validates the lockfile on Python 3.11 + 3.12.
+- **`arcgis-mcp-setup --install-runtime-deps`** (with `--with-vision` /
+  `--project-root`): provisions the cloned worker interpreter with the bridge's
+  runtime dependencies so `-m arcgis_mcp.worker` imports without a manual step.
+- **Startup fail-fast on a missing scratch geodatabase**:
+  `Settings.from_environment` raises a clear `ConfigError` instead of failing
+  cryptically deep inside a worker.
+- **81 unit tests** (up from 6): PathGuard, Pydantic contracts, generic
+  `apply_path_guard` + `register` invariants, worker error-kind mapping, and
+  `Settings.from_environment` validation.
+- **Packaging pipeline**: a CI `build-dist` job builds the wheel + sdist and
+  smoke-tests them in a clean environment; a tag-triggered `release.yml`
+  publishes to PyPI via Trusted Publishing (OIDC, no stored token).
+
+### Changed
+
+- `__version__` now derives from installed package metadata
+  (`importlib.metadata`) — a single source of truth that can no longer drift
+  from `pyproject.toml`.
+- MCP `serverInfo.version` now reports the project version (previously the
+  `mcp` library version, e.g. 1.27.2).
+- Tightened dependency bounds: `fastmcp>=3.4,<4`, `mcp>=1.27.2,<2`,
+  `pydantic>=2.5,<3`.
+- arcpy is now opaque to mypy (`follow_imports="skip"` +
+  `follow_imports_for_stubs=true`), fixing a local-only crash on machines with
+  ArcGIS Pro installed (PEP 695 stubs under a py311 target).
+- Path B install docs now create a hermetic dev venv (dropped
+  `--system-site-packages`) to keep ArcGIS site-packages out of the test gates.
+
+### Removed
+
+- Unused direct dependencies `fastapi` and `uvicorn` — the stdio server never
+  imported them; they arrive transitively via `fastmcp` when needed.
+
+### Fixed
+
+- Documentation corrections: vision extra dependencies, `ARCGIS_MCP_ALLOWED_ROOTS`
+  optionality, the "ten verticals" count, and the `execution.py` cwd/PYTHONPATH
+  docstring.
+
+[0.6.0]: https://github.com/muend/arcgis-mcp-bridge/compare/v0.5.1...v0.6.0
+
 ## [0.5.1] — 2026-06-13
 
 ### Fixed
