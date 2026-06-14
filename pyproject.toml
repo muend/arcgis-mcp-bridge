@@ -34,10 +34,14 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
+# Bounds are SemVer-major-capped: the lockfile pins exact builds, but these
+# ranges keep `uv pip install` (lock-free Path A) and downstream consumers off
+# the next major's breaking changes. Floors track features actually relied on
+# (pydantic v2.5 validator API; fastmcp 3.x / mcp 1.27 protocol surface).
 dependencies = [
-    "fastmcp",
-    "mcp>=1.27.2",
-    "pydantic>=2.0",
+    "fastmcp>=3.4,<4",
+    "mcp>=1.27.2,<2",
+    "pydantic>=2.5,<3",
 ]
 
 [project.optional-dependencies]

@@ -64,12 +64,12 @@ vision = [
 
 [package.metadata]
 requires-dist = [
-    { name = "fastmcp" },
-    { name = "mcp", specifier = ">=1.27.2" },
+    { name = "fastmcp", specifier = ">=3.4,<4" },
+    { name = "mcp", specifier = ">=1.27.2,<2" },
     { name = "mypy", marker = "extra == 'dev'" },
     { name = "numpy", marker = "extra == 'vision'" },
     { name = "opencv-python-headless", marker = "extra == 'vision'" },
-    { name = "pydantic", specifier = ">=2.0" },
+    { name = "pydantic", specifier = ">=2.5,<3" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "ruff", marker = "extra == 'dev'" },

@@ -86,9 +86,10 @@ class SubprocessBackend:
         Args:
             arcpy_python: Interpreter inside ``arcgis-mcp-env``
                 (``Settings.arcpy_python_path``).
-            project_root: Directory containing the ``arcgis_mcp`` package,
-                injected into the worker's ``PYTHONPATH`` so
-                ``-m arcgis_mcp.worker`` resolves regardless of cwd.
+            project_root: Directory containing the ``arcgis_mcp`` package.
+                Set as the worker subprocess's ``cwd`` (below), so
+                ``python -m arcgis_mcp.worker`` resolves the package via
+                ``sys.path[0]`` without mutating ``PYTHONPATH``.
             max_workers: Concurrency ceiling for simultaneously live worker
                 subprocesses (``ARCGIS_MCP_MAX_WORKERS``). Each worker pays
                 a full ``import arcpy`` (hundreds of MB) and may check out

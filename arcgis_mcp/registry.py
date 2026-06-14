@@ -27,7 +27,7 @@ LOG: Final[logging.Logger] = logging.getLogger("arcgis_mcp.registry")
 
 
 class Category(str, enum.Enum):
-    """The nine catalog verticals (arcgis_mcp_tool_catalog.md)."""
+    """The ten catalog verticals (arcgis_mcp_tool_catalog.md)."""
 
     MAP_MGMT = "map_layer_management"
     DATA_MGMT = "data_management"

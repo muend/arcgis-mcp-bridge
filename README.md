@@ -284,7 +284,7 @@ uv venv --python "C:\Program Files\ArcGIS\Pro\bin\Python\envs\arcgispro-py3\pyth
 uv sync --locked
 ```
 
-> **Note:** To enable the hand-drawn sketch-to-GIS pipeline, install using the `[vision]` or `[dev,vision]` flag to pull downstream dependencies like `opencv-python` and `scikit-image` into your environment:
+> **Note:** To enable the hand-drawn sketch-to-GIS pipeline, install using the `[vision]` or `[dev,vision]` flag to pull the downstream dependencies `opencv-python-headless` and `numpy` into your environment:
 > `uv sync --locked --extra vision` or `uv sync --locked --all-extras`
 
 Both paths share the same setup engine (`arcgis-mcp-setup` ≡
@@ -310,7 +310,7 @@ Install the full stack into that environment
 | Variable | Required | Purpose |
 |---|---|---|
 | `ARCPY_PYTHON_PATH` | yes | Layer B interpreter: licensed arcpy **and** Pydantic resolvable (use `arcgis-mcp-env`) |
-| `ARCGIS_MCP_ALLOWED_ROOTS` | yes | `;`-separated PathGuard boundary roots |
+| `ARCGIS_MCP_ALLOWED_ROOTS` | no | `;`-separated PathGuard boundary roots; defaults to `~/Documents/ArcGIS/Projects` if unset |
 | `ARCGIS_MCP_SCRATCH_GDB` | no | Default output workspace |
 | `ARCGIS_MCP_LOG_FILE` / `_LOG_LEVEL` / `_TOOL_TIMEOUT` | no | Logging + per-job ceiling |
 | `ARCGIS_MCP_MAX_WORKERS` | no | Concurrent arcpy worker ceiling (default 2) — protects license seats and RAM |

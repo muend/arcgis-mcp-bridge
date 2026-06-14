@@ -29,9 +29,17 @@ including globally as the ``arcgis-mcp-setup`` console script.
 
 Usage
 -----
-    arcgis-mcp-setup [--env-name arcgis-mcp-env] [--dry-run]      # pip install
-    python -m arcgis_mcp.setup_env [--env-name ...] [--dry-run]   # git clone
+    arcgis-mcp-setup [--env-name arcgis-mcp-env] [--dry-run]
+    arcgis-mcp-setup --install-runtime-deps [--with-vision]   # provision worker env
+    arcgis-mcp-setup --install-runtime-deps --project-root <repo-root>
+    python -m arcgis_mcp.setup_env [--env-name ...] [--dry-run]
     python setup_env.py [...]                # repo-root shim (back-compat)
+
+With ``--install-runtime-deps`` the cloned worker environment also receives the
+bridge's pinned runtime dependencies (``pydantic`` etc.) via ``pip install``,
+so ``-m arcgis_mcp.worker`` imports without a separate manual step. Pair with
+``--with-vision`` to add the ``[vision]`` extra. Combine with ``--dry-run`` to
+preview the exact pip command without mutating the environment.
 
 Exit codes: 0 = ready, 1 = environment error, 2 = conda not found.
 """
@@ -63,6 +71,7 @@ _CANDIDATE_CONDA_PATHS: Final[tuple[str, ...]] = (
 
 _SUBPROCESS_TIMEOUT_S: Final[int] = 60
 _CLONE_TIMEOUT_S: Final[int] = 1800  # full env clone can take 10-20 minutes
+_PIP_INSTALL_TIMEOUT_S: Final[int] = 900  # cold wheel builds (e.g. opencv) are slow
 
 
 class SetupError(RuntimeError):
@@ -80,6 +89,7 @@ class EnvReport:
     arcpy_ok: bool
     arcpy_version: str | None
     created: bool  # True if this run performed the clone
+    runtime_deps_installed: bool  # True if --install-runtime-deps ran (or dry-ran)
 
     def to_json(self) -> str:
         return json.dumps(self.__dict__, indent=2)
@@ -221,6 +231,47 @@ def verify_arcpy(python_exe: Path) -> str:
         raise SetupError(f"arcpy probe returned unparseable output: {exc}") from exc
 
 
+def _infer_project_root() -> Path:
+    """Repository root that ships ``pyproject.toml`` (``arcgis_mcp/`` -> parent)."""
+    return Path(__file__).resolve().parents[1]
+
+
+def install_runtime_deps(
+    python_exe: Path,
+    project_root: Path,
+    *,
+    with_vision: bool,
+    dry_run: bool,
+) -> bool:
+    """Install the bridge's runtime dependencies INTO the target interpreter.
+
+    The worker (Layer B) imports ``pydantic`` and the ``arcgis_mcp`` package;
+    a fresh clone of read-only ``arcgispro-py3`` is not guaranteed to satisfy
+    the pinned ``pydantic>=2.5`` floor. We install the project itself so pip
+    reads the single source of truth (``pyproject.toml``) instead of a
+    duplicated dependency list (DRY) — after which ``-m arcgis_mcp.worker``
+    imports cleanly in that interpreter. Idempotent: pip no-ops when the
+    requirements are already satisfied.
+
+    Returns True if the install ran (or would run, under ``--dry-run``).
+    """
+    if not (project_root / "pyproject.toml").is_file():
+        raise SetupError(
+            f"Cannot install runtime deps: no pyproject.toml under {project_root}. "
+            "Pass --project-root pointing at the repository checkout."
+        )
+    target = f"{project_root}[vision]" if with_vision else str(project_root)
+    if dry_run:
+        LOG.info("[dry-run] Would install runtime deps into %s (pip install %r).",
+                 python_exe, target)
+        return True
+    LOG.info("Installing runtime deps into %s (pip install %r)...",
+             python_exe, target)
+    _run([str(python_exe), "-m", "pip", "install", target],
+         timeout=_PIP_INSTALL_TIMEOUT_S)
+    return True
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Entry point. Returns a process exit code."""
     _configure_logging()
@@ -228,6 +279,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--env-name", default=DEFAULT_TARGET_ENV)
     parser.add_argument("--dry-run", action="store_true",
                         help="Audit only; never mutate conda state.")
+    parser.add_argument(
+        "--install-runtime-deps", action="store_true",
+        help="pip install the bridge's runtime deps into the target (worker) "
+             "interpreter so `-m arcgis_mcp.worker` imports cleanly.")
+    parser.add_argument(
+        "--with-vision", action="store_true",
+        help="Include the [vision] extra when installing runtime deps "
+             "(implies --install-runtime-deps).")
+    parser.add_argument(
+        "--project-root", type=Path, default=None,
+        help="Repository root containing pyproject.toml "
+             "(default: inferred from this package's location).")
     args = parser.parse_args(argv)
 
     try:
@@ -248,6 +311,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         except SetupError as exc:
             LOG.warning("arcpy verification failed (license offline?): %s", exc)
 
+        runtime_deps_installed = False
+        if args.install_runtime_deps or args.with_vision:
+            project_root = (args.project_root or _infer_project_root()).resolve()
+            runtime_deps_installed = install_runtime_deps(
+                python_exe,
+                project_root,
+                with_vision=args.with_vision,
+                dry_run=args.dry_run,
+            )
+
         report = EnvReport(
             conda_exe=str(conda_exe),
             env_name=args.env_name,
@@ -256,6 +329,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             arcpy_ok=arcpy_ok,
             arcpy_version=arcpy_version,
             created=created,
+            runtime_deps_installed=runtime_deps_installed,
         )
         print(report.to_json())  # the ONLY stdout output of this script
         LOG.info("Set ARCPY_PYTHON_PATH=%s for the MCP server.", python_exe)
