@@ -38,14 +38,31 @@ htmlcov/
 pip-log.txt
 pip-delete-this-directory.txt
 
+# IDEs, Editors & Workspaces (Cursor, VS Code, vb.)
+# Lokal patikalar ve kişisel editör yapılandırmalarının repoya sızmasını engeller
+.vscode/
+.idea/
+.cursor/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
 # Windows System Files
 Thumbs.db
 Ehthumbs.db
 Desktop.ini
 
-# ArcGIS Pro & Esri Specific Artifacs
+# ArcGIS Pro & Esri Specific Artifacts
 # Buralarda üretilecek geçici çalışma klasörleri ana repoya sızmamalı
 **/scratch/
 **/ArcGISDefault.gdb/
 *.lock
 *.gdb.lock
+*.aprx
+*.aprx.bak
+# Analiz aşamalarında lokalde üretilen geçici çıktı veritabanları (isteğe bağlı)
+# **/outputs/*.gdb/
+# uv lock file must be tracked (overrides *.lock rule)
+!uv.lock
