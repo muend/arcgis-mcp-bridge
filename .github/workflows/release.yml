@@ -1,28 +1,22 @@
 name: release
 
-# On a version tag (e.g. v0.6.1): build, publish to PyPI, and cut a GitHub Release.
-#
-# PyPI auth uses an API token stored as a GitHub Actions secret. One-time setup:
-#   1. PyPI -> Account settings -> API tokens -> Add API token
-#      (scope it to the `arcgis-mcp-bridge` project now that it exists).
-#   2. GitHub -> repo -> Settings -> Secrets and variables -> Actions ->
-#      New repository secret -> name: PYPI_API_TOKEN, value: pypi-...
-#
-# `uv publish --check-url` skips files already present on the index, so
-# re-running a tag whose version is already published is a safe no-op.
-
 on:
   push:
     tags:
       - "v*"
 
-permissions:
-  contents: write  # build/publish need read; the GitHub Release step needs write
-
 jobs:
   release:
     name: Build, publish to PyPI, and create the GitHub Release
     runs-on: ubuntu-latest
+    
+    # PyPI'de tanımladığımız ortam ile eşleşmesi için burayı ekliyoruz
+    environment: pypi 
+    
+    permissions:
+      id-token: write  # PyPI'ye şifresiz güvenli bağlanmak için ŞARTTIR
+      contents: write  # GitHub Release oluşturabilmek için ŞARTTIR
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,9 +30,9 @@ jobs:
         run: uv build
 
       - name: Publish to PyPI
-        env:
-          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-        run: uv publish --check-url https://pypi.org/simple/
+        # uv, id-token yetkisini görünce otomatik olarak Trusted Publisher'ı kullanır.
+        # Token satırını (UV_PUBLISH_TOKEN) tamamen kaldırıyoruz.
+        run: uv publish
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
