@@ -1,5 +1,18 @@
 name: release
 
+# On a version tag (e.g. v0.6.0): build, publish to PyPI using OIDC, and cut a GitHub Release.
+#
+# PyPI authentication utilizes Trusted Publishers (OIDC) instead of static tokens.
+# One-time setup required:
+#   1. GitHub Repository -> Settings -> Environments -> Create an environment named 'pypi'.
+#   2. PyPI -> Account settings -> Portal / Project -> Add GitHub UI Publisher:
+#      - Owner: muend
+#      - Repository: arcgis-mcp-bridge
+#      - Environment: pypi
+#      - Workflow: release.yml
+#
+# `uv publish --check-url` provides a safety net by verifying the package index before publishing.
+
 on:
   push:
     tags:
@@ -10,29 +23,29 @@ jobs:
     name: Build, publish to PyPI, and create the GitHub Release
     runs-on: ubuntu-latest
     
-    # PyPI'de tanımladığımız ortam ile eşleşmesi için burayı ekliyoruz
+    # Connects this job to the GitHub Environment for OIDC claim validation
     environment: pypi 
     
     permissions:
-      id-token: write  # PyPI'ye şifresiz güvenli bağlanmak için ŞARTTIR
-      contents: write  # GitHub Release oluşturabilmek için ŞARTTIR
+      id-token: write  # Critical requirement for requesting the OIDC JWT token
+      contents: write  # Required for softprops/action-gh-release to create releases
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install uv
+      - name: Set up uv
         uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.12"
 
-      - name: Build sdist + wheel
+      - name: Build source distribution and wheel
         run: uv build
 
-      - name: Publish to PyPI
-        # uv, id-token yetkisini görünce otomatik olarak Trusted Publisher'ı kullanır.
-        # Token satırını (UV_PUBLISH_TOKEN) tamamen kaldırıyoruz.
-        run: uv publish
+      - name: Publish package to PyPI via Trusted Publishing
+        # OIDC integration automatically fulfills authentication when id-token is write
+        # `--check-url` prevents accidental overwrites or misconfigured index failures
+        run: uv publish --check-url https://pypi.org/simple/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
