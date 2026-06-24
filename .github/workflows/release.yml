@@ -1,17 +1,26 @@
 name: release
 
-# On a version tag (e.g. v0.6.0): build, publish to PyPI using OIDC, and cut a GitHub Release.
+# On a version tag (e.g. v0.6.1): build, publish to PyPI using OIDC, and cut a GitHub Release.
 #
-# PyPI authentication utilizes Trusted Publishers (OIDC) instead of static tokens.
+# DESIGN — why this workflow can never fail with a "hash mismatch" again:
+#   PyPI is an IMMUTABLE index: a filename, once published, can never be
+#   overwritten. The old failure happened because the version was hardcoded in
+#   pyproject.toml, so re-tagging/re-running v0.6.0 rebuilt an ALREADY-published
+#   version and `uv publish` correctly refused (local sha256 != remote sha256).
+#
+#   Two structural guards remove the entire failure class:
+#     1. setuptools-scm derives the version from THIS tag (single source of
+#        truth) — you physically cannot build a version that isn't a fresh tag.
+#     2. The "check PyPI" step below makes publish IDEMPOTENT: if the version is
+#        already on the index, publishing is skipped (not failed), so re-running
+#        a tag still succeeds and the GitHub Release step still runs.
+#
+# PyPI authentication uses Trusted Publishers (OIDC), not static tokens.
 # One-time setup required:
-#   1. GitHub Repository -> Settings -> Environments -> Create an environment named 'pypi'.
-#   2. PyPI -> Account settings -> Portal / Project -> Add GitHub UI Publisher:
-#      - Owner: muend
-#      - Repository: arcgis-mcp-bridge
-#      - Environment: pypi
-#      - Workflow: release.yml
-#
-# `uv publish --check-url` provides a safety net by verifying the package index before publishing.
+#   1. GitHub repo -> Settings -> Environments -> create environment 'pypi'.
+#   2. PyPI -> project -> Publishing -> Add a GitHub Actions publisher:
+#        Owner: muend | Repository: arcgis-mcp-bridge
+#        Workflow: release.yml | Environment: pypi
 
 on:
   push:
@@ -22,17 +31,20 @@ jobs:
   release:
     name: Build, publish to PyPI, and create the GitHub Release
     runs-on: ubuntu-latest
-    
-    # Connects this job to the GitHub Environment for OIDC claim validation
-    environment: pypi 
-    
+
+    # Connects this job to the GitHub Environment for OIDC claim validation.
+    environment: pypi
+
     permissions:
-      id-token: write  # Critical requirement for requesting the OIDC JWT token
-      contents: write  # Required for softprops/action-gh-release to create releases
+      id-token: write  # Critical: lets the runner request the OIDC JWT for PyPI.
+      contents: write  # Required for softprops/action-gh-release to create releases.
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # setuptools-scm needs full history + tags to compute the version.
+          fetch-depth: 0
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
@@ -42,9 +54,33 @@ jobs:
       - name: Build source distribution and wheel
         run: uv build
 
+      - name: Determine built version
+        id: ver
+        run: |
+          f=$(basename dist/*.tar.gz)
+          v=${f#arcgis_mcp_bridge-}
+          v=${v%.tar.gz}
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Built version: $v"
+
+      - name: Check whether this version is already on PyPI
+        id: exists
+        run: |
+          v="${{ steps.ver.outputs.version }}"
+          code=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://pypi.org/pypi/arcgis-mcp-bridge/${v}/json")
+          if [ "$code" = "200" ]; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Version ${v} is already on PyPI — skipping publish (idempotent re-run)."
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            echo "Version ${v} not on PyPI (HTTP ${code}) — will publish."
+          fi
+
       - name: Publish package to PyPI via Trusted Publishing
-        # OIDC integration automatically fulfills authentication when id-token is write
-        # `--check-url` prevents accidental overwrites or misconfigured index failures
+        if: steps.exists.outputs.published == 'false'
+        # OIDC fulfils auth automatically because id-token: write is granted.
+        # --check-url is a second safety net against a misconfigured index.
         run: uv publish --check-url https://pypi.org/simple/
 
       - name: Create GitHub Release

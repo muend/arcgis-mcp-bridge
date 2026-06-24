@@ -3,12 +3,15 @@
 # ---------------------------------------------------------------------------
 
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=68", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "arcgis-mcp-bridge"
-version = "0.6.0"
+# Sürüm artık elle yönetilmez: git tag'inden (vX.Y.Z) setuptools-scm türetir.
+# Tek doğruluk kaynağı = tag. Bu, yayımlanmış bir sürümü yanlışlıkla yeniden
+# inşa edip PyPI'a göndermeyi (immutable index çakışması) kökten imkânsız kılar.
+dynamic = ["version"]
 description = "A secure, local-first, asynchronous MCP server exposing ArcGIS Pro's ArcPy engine over stdio JSON-RPC."
 readme = "README.md"
 # Floor is 3.11 (the ArcPy/Layer B interpreter); Layer A may run newer (3.13).
@@ -61,6 +64,17 @@ Changelog = "https://github.com/muend/arcgis-mcp-bridge/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 include = ["arcgis_mcp*"]
+
+# ---------------------------------------------------------------------------
+# setuptools-scm — sürümün tek doğruluk kaynağı git tag'idir.
+#   tag v0.6.1 checkout  -> sürüm 0.6.1
+#   tag sonrası commit'ler -> 0.6.2.devN+g<sha> (yayımlanamaz, kazara overwrite yok)
+# fallback_version: git geçmişi olmayan (örn. tarball) ortamlar için.
+# ---------------------------------------------------------------------------
+[tool.setuptools_scm]
+version_scheme = "release-branch-semver"
+local_scheme = "node-and-date"
+fallback_version = "0.0.0+unknown"
 
 # ---------------------------------------------------------------------------
 # Ruff — formatter + linter (single tool, no black/isort/flake8 fragmentation)

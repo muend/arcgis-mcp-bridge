@@ -12,7 +12,8 @@ __all__ = ["__version__"]
 
 try:
     # Single source of truth: the version is read from installed package
-    # metadata (pyproject.toml), so __init__ and pyproject can never drift.
+    # metadata, which setuptools-scm stamps from the git tag at build time —
+    # so __init__, pyproject and the published artifact can never drift.
     __version__ = version("arcgis-mcp-bridge")
 except PackageNotFoundError:  # raw source tree that was never installed
-    __version__ = "0.6.0"
+    __version__ = "0.0.0+unknown"
