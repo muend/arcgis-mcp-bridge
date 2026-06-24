@@ -42,7 +42,6 @@ wheels = [
 
 [[package]]
 name = "arcgis-mcp-bridge"
-version = "0.6.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastmcp" },
