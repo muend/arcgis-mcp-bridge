@@ -104,7 +104,7 @@ to stderr at startup — the single sanctioned stdout write is the final
 NDJSON result frame, so native ArcObjects chatter can never corrupt the
 JSON-RPC channel. A native crash terminates the worker, not the server:
 the parent converts a non-zero exit into a structured error frame.
-
+ 
 **Declarative registry** (`arcgis_mcp/registry.py`).
 Each tool is one `ToolSpec(name, category, description, input_model,
 worker_fn, destructive)`. One generic proxy factory materializes all 100
