@@ -1,0 +1,51 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.muend/arcgis-mcp-bridge",
+  "title": "ArcGIS MCP Bridge",
+  "description": "A secure, local-first MCP server exposing ArcGIS Pro's ArcPy engine over stdio JSON-RPC.",
+  "repository": {
+    "url": "https://github.com/muend/arcgis-mcp-bridge",
+    "source": "github"
+  },
+  "version": "0.6.2",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "arcgis-mcp-bridge",
+      "version": "0.6.2",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "ARCPY_PYTHON_PATH",
+          "description": "Path to the licensed ArcGIS Pro Python interpreter or cloned arcgis-mcp-env interpreter.",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "ARCGIS_MCP_ALLOWED_ROOTS",
+          "description": "Optional semicolon-separated PathGuard boundary roots for local GIS data.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "ARCGIS_MCP_SCRATCH_GDB",
+          "description": "Optional default output workspace. If set, it must point to an existing file geodatabase.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "ARCGIS_MCP_MAX_WORKERS",
+          "description": "Optional maximum number of concurrent ArcPy worker subprocesses. Defaults to 2.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}
