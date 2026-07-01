@@ -27,6 +27,8 @@ uv pip install arcgis-mcp-bridge
 A secure, local-first, asynchronous MCP server exposing ArcGIS Pro's ArcPy
 engine to Claude Desktop and other MCP hosts over stdio JSON-RPC.
 
+Technical write-up: https://dev.to/muend/building-a-secure-mcp-bridge-for-arcgis-pro-and-arcpy-511g
+
 | | |
 |---|---|
 | Catalog | 100 tools · 10 verticals |
