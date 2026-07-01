@@ -3,6 +3,22 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 Versioning: [Semantic Versioning](https://semver.org/)
 
+## [0.6.1] — 2026-06-27
+
+### Fixed
+
+* Regenerated `uv.lock` after moving package version resolution to `setuptools-scm` dynamic versioning.
+* Fixed lockfile drift caused by the transition from a manually declared project version to tag-derived releases.
+* Ensured `uv sync --locked` resolves cleanly with the current `pyproject.toml` metadata contract.
+* Aligned the locked dependency/build metadata with the release workflow so tagged builds such as `v0.6.1` derive the package version from Git tags instead of a hardcoded field.
+* Prevented release-time inconsistencies where the source tree, lockfile, and built distribution could disagree about the package version.
+
+### Changed
+
+* The lockfile now reflects the project’s single-source-of-truth versioning strategy: Git tag → `setuptools-scm` → built package metadata.
+* No runtime behavior changed; this release is a packaging and release-integrity correction for reproducible installs and PyPI publishing.
+
+
 ## [0.6.0] — 2026-06-14
 
 ### Added
