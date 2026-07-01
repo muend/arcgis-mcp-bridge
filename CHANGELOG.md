@@ -20,6 +20,8 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 [0.6.1]: https://github.com/muend/arcgis-mcp-bridge/compare/v0.6.0...v0.6.1
 
+## [0.6.0] — 2026-06-14
+
 ### Added
 
 - **uv ecosystem**: committed `uv.lock`, a `uv sync --locked` install path, and
