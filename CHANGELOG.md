@@ -3,6 +3,14 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 Versioning: [Semantic Versioning](https://semver.org/)
 
+## [0.6.2] — 2026-07-01
+
+### Added
+
+- Added the MCP Registry ownership marker to the package README so the PyPI distribution can be verified under `io.github.muend/arcgis-mcp-bridge`.
+
+[0.6.2]: https://github.com/muend/arcgis-mcp-bridge/compare/v0.6.1...v0.6.2
+
 ## [0.6.1] — 2026-06-27
 
 ### Fixed
