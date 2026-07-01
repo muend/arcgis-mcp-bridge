@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# arcgis-mcp-bridge — package metadata + static-analysis configuration anchor
+# arcgis-mcp-bridge — package metadata and tool configuration
 # ---------------------------------------------------------------------------
 
 [build-system]
@@ -8,14 +8,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "arcgis-mcp-bridge"
-# Sürüm artık elle yönetilmez: git tag'inden (vX.Y.Z) setuptools-scm türetir.
-# Tek doğruluk kaynağı = tag. Bu, yayımlanmış bir sürümü yanlışlıkla yeniden
-# inşa edip PyPI'a göndermeyi (immutable index çakışması) kökten imkânsız kılar.
 dynamic = ["version"]
 description = "A secure, local-first, asynchronous MCP server exposing ArcGIS Pro's ArcPy engine over stdio JSON-RPC."
 readme = "README.md"
-# Floor is 3.11 (the ArcPy/Layer B interpreter); Layer A may run newer (3.13).
-# Source must therefore stay compatible with 3.11 — Ruff enforces py311 below.
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 authors = [{ name = "muend" }]
@@ -37,10 +32,10 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-# Bounds are SemVer-major-capped: the lockfile pins exact builds, but these
-# ranges keep `uv pip install` (lock-free Path A) and downstream consumers off
-# the next major's breaking changes. Floors track features actually relied on
-# (pydantic v2.5 validator API; fastmcp 3.x / mcp 1.27 protocol surface).
+
+# Runtime bounds are capped at the next major release. The lockfile pins exact
+# builds for development and CI, while these ranges keep regular installs away
+# from known breaking-version boundaries.
 dependencies = [
     "fastmcp>=3.4,<4",
     "mcp>=1.27.2,<2",
@@ -48,9 +43,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Vision stack is only needed by the Layer B worker for extract_sketch_to_gis.
-# Install explicitly:  pip install -e ".[vision]"  or  pip install -e ".[dev,vision]"
+# Required only for the Sketch-to-GIS pipeline.
 vision = ["opencv-python-headless", "numpy"]
+
+# Development and CI tooling.
 dev = ["ruff", "mypy", "pytest", "pytest-cov"]
 
 [project.scripts]
@@ -66,24 +62,23 @@ Changelog = "https://github.com/muend/arcgis-mcp-bridge/blob/main/CHANGELOG.md"
 include = ["arcgis_mcp*"]
 
 # ---------------------------------------------------------------------------
-# setuptools-scm — sürümün tek doğruluk kaynağı git tag'idir.
-#   tag v0.6.1 checkout  -> sürüm 0.6.1
-#   tag sonrası commit'ler -> 0.6.2.devN+g<sha> (yayımlanamaz, kazara overwrite yok)
-# fallback_version: git geçmişi olmayan (örn. tarball) ortamlar için.
+# setuptools-scm
 # ---------------------------------------------------------------------------
+
+# The package version is derived from Git tags. Do not add a static
+# `version = "..."`
+# field under [project].
 [tool.setuptools_scm]
 version_scheme = "release-branch-semver"
 local_scheme = "node-and-date"
 fallback_version = "0.0.0+unknown"
 
 # ---------------------------------------------------------------------------
-# Ruff — formatter + linter (single tool, no black/isort/flake8 fragmentation)
+# Ruff
 # ---------------------------------------------------------------------------
 
 [tool.ruff]
 line-length = 88
-# Lint for the OLDEST supported interpreter: code that only parses on 3.13
-# would crash the Layer B worker at import time.
 target-version = "py311"
 src = ["arcgis_mcp"]
 
@@ -92,24 +87,19 @@ select = [
     "E",    # pycodestyle errors
     "W",    # pycodestyle warnings
     "F",    # pyflakes
-    "I",    # isort import sorting
-    "B",    # flake8-bugbear (likely bugs: mutable defaults, late-binding...)
-    "RUF",  # ruff-native rules
+    "I",    # import sorting
+    "B",    # flake8-bugbear
+    "RUF",  # Ruff-specific rules
 ]
 ignore = [
-    # Line length is enforced by the formatter; long URLs/docstring tables in
-    # tool descriptions are allowed to breathe.
+    # Formatting handles normal wrapping; long URLs and tool descriptions are
+    # allowed where readability would suffer.
     "E501",
 ]
-# noqa codes from rule families we deliberately do NOT enable (they document
-# intent for human reviewers); prevents RUF100 false positives.
 external = ["PLC", "BLE", "ANN", "A"]
-# Turkish comments are first-class citizens in this repo.
 allowed-confusables = ["ı", "İ"]
 
 [tool.ruff.lint.per-file-ignores]
-# Category modules import sibling contracts as `c` for registration density;
-# star-style re-export hubs are intentional in the contracts package façade.
 "arcgis_mcp/contracts/__init__.py" = ["F401"]
 "arcgis_mcp/tools/__init__.py" = ["F401"]
 
@@ -118,51 +108,51 @@ known-first-party = ["arcgis_mcp"]
 combine-as-imports = true
 
 # ---------------------------------------------------------------------------
-# Mypy — strict static typing with explicit escape hatches for binary deps
+# Mypy
 # ---------------------------------------------------------------------------
 
 [tool.mypy]
 python_version = "3.11"
 strict = true
 files = ["arcgis_mcp"]
-# Pydantic v2 ships a mypy plugin: model fields, validators and frozen
-# semantics are understood instead of guessed.
 plugins = ["pydantic.mypy"]
 warn_unreachable = true
 show_error_codes = true
 pretty = true
 
-# Üçüncü parti kütüphane dekoratörlerinin katı tip kontrolünü esnetin
+# Third-party decorators used by MCP/Pydantic integrations are not always
+# typed precisely enough for strict decorator checks.
 disallow_untyped_decorators = false
 
-# Closed-source / binary / optionally-installed dependencies: no stubs exist.
+# Optional or binary dependencies may be unavailable in CI and often do not
+# provide complete type information.
 [[tool.mypy.overrides]]
-module = ["cv2", "cv2.*", "numpy", "numpy.*", "fastmcp", "fastmcp.*", "mcp", "mcp.*"]
+module = [
+    "cv2",
+    "cv2.*",
+    "numpy",
+    "numpy.*",
+    "fastmcp",
+    "fastmcp.*",
+    "mcp",
+    "mcp.*",
+]
 ignore_missing_imports = true
 
-# arcpy DOES ship .pyi stubs, but ArcGIS Pro 3.x authors them in PEP 695
-# (3.12+) generic syntax while this gate targets 3.11 — parsing them crashes
-# mypy on any machine with ArcGIS Pro installed (hosted CI never sees arcpy,
-# so it was silently unaffected). arcpy is Layer-B-exclusive and injected as
-# a parameter, so Layer A already treats it as fully opaque: skip following
-# its stubs entirely, keeping local and CI type-checking identical.
+# ArcPy is only imported inside the worker process. Its stubs can be
+# incompatible with a Python 3.11 type-checking target, so mypy treats it as
+# opaque.
 [[tool.mypy.overrides]]
 module = ["arcpy", "arcpy.*"]
 ignore_missing_imports = true
-# follow_imports alone does NOT apply to .pyi stubs; gp.pyi is a stub, so it
-# still got parsed. follow_imports_for_stubs=true extends the skip to stubs —
-# this pair is mypy's documented recipe for ignoring a broken third-party stub.
 follow_imports = "skip"
 follow_imports_for_stubs = true
 
-# Worker functions intentionally traffic in `Any` (the arcpy module object is
-# injected as a parameter precisely so Layer A never imports it). Strict mode
-# stays on, but arcpy-touching expressions are exempt from Any-propagation
-# noise in the tools layer.
+# Tool implementations receive the ArcPy module object dynamically. The tools
+# layer intentionally allows `Any` around ArcPy calls while keeping strict mode
+# enabled for the rest of the package.
 [[tool.mypy.overrides]]
 module = ["arcgis_mcp.tools.*"]
 disallow_any_explicit = false
 warn_return_any = false
-# Worker functions return plain `dict` payloads destined for JSON frames;
-# parameterizing 75 signatures adds noise, not safety, in this Any-domain.
 disallow_any_generics = false
