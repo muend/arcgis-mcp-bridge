@@ -7,19 +7,18 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ### Fixed
 
-* Regenerated `uv.lock` after moving package version resolution to `setuptools-scm` dynamic versioning.
-* Fixed lockfile drift caused by the transition from a manually declared project version to tag-derived releases.
-* Ensured `uv sync --locked` resolves cleanly with the current `pyproject.toml` metadata contract.
-* Aligned the locked dependency/build metadata with the release workflow so tagged builds such as `v0.6.1` derive the package version from Git tags instead of a hardcoded field.
-* Prevented release-time inconsistencies where the source tree, lockfile, and built distribution could disagree about the package version.
+- Regenerated `uv.lock` after moving package version resolution to `setuptools-scm` dynamic versioning.
+- Fixed lockfile drift caused by the transition from a manually declared project version to tag-derived releases.
+- Ensured `uv sync --locked` resolves cleanly with the current `pyproject.toml` metadata contract.
+- Aligned the locked dependency/build metadata with the release workflow so tagged builds such as `v0.6.1` derive the package version from Git tags instead of a hardcoded field.
+- Prevented release-time inconsistencies where the source tree, lockfile, and built distribution could disagree about the package version.
 
 ### Changed
 
-* The lockfile now reflects the project’s single-source-of-truth versioning strategy: Git tag → `setuptools-scm` → built package metadata.
-* No runtime behavior changed; this release is a packaging and release-integrity correction for reproducible installs and PyPI publishing.
+- The lockfile now reflects the project’s single-source-of-truth versioning strategy: Git tag → `setuptools-scm` → built package metadata.
+- No runtime behavior changed; this release is a packaging and release-integrity correction for reproducible installs and PyPI publishing.
 
-
-## [0.6.0] — 2026-06-14
+[0.6.1]: https://github.com/muend/arcgis-mcp-bridge/compare/v0.6.0...v0.6.1
 
 ### Added
 
@@ -36,8 +35,8 @@ Versioning: [Semantic Versioning](https://semver.org/)
   `Settings.from_environment` validation.
 - **Packaging pipeline**: a CI `build-dist` job builds the wheel + sdist and
   smoke-tests them in a clean environment; a tag-triggered `release.yml`
-  publishes to PyPI (token-authenticated) and cuts a GitHub Release with the
-  built artifacts.
+  publishes to PyPI via Trusted Publishing / OIDC and cuts a GitHub Release
+  with the built artifacts.
 
 ### Changed
 
