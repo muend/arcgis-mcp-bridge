@@ -395,3 +395,5 @@ a licensed ArcGIS Pro installation on Windows.
 ## 07 — License
 
 Apache License 2.0. See [LICENSE](LICENSE).
+
+<!-- mcp-name: io.github.muend/arcgis-mcp-bridge -->
