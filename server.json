@@ -7,12 +7,12 @@
     "url": "https://github.com/muend/arcgis-mcp-bridge",
     "source": "github"
   },
-  "version": "0.6.2",
+  "version": "0.6.3",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "arcgis-mcp-bridge",
-      "version": "0.6.2",
+      "version": "0.6.3",
       "transport": {
         "type": "stdio"
       },
