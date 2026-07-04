@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Muhammed Enes Duran geo logo">
+  <rect width="512" height="512" rx="96" fill="#1C2430"/>
+  <g fill="none" stroke="#F5F1E8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M108 333 C152 261 179 203 235 241 C274 267 291 336 340 289 C367 263 386 226 416 193" stroke-width="24"/>
+    <path d="M97 252 C145 182 197 143 252 193 C302 239 329 248 392 135" stroke-width="13" opacity=".62"/>
+    <path d="M121 394 C174 327 229 302 286 335 C331 361 367 343 421 276" stroke-width="13" opacity=".34"/>
+  </g>
+  <circle cx="256" cy="256" r="44" fill="none" stroke="#EBA93F" stroke-width="18"/>
+  <circle cx="256" cy="256" r="11" fill="#EBA93F"/>
+</svg>
