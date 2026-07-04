@@ -129,29 +129,52 @@ _CAT = Category.NETWORK
 _SPECS = (
     (
         "service_area",
-        "Reachable-area polygons around facilities at travel cutoffs "
-        "(MakeServiceAreaAnalysisLayer). Requires Network Analyst.",
+        (
+            "Solve reachable service area polygons around facility points using "
+            "ArcPy Network Analyst MakeServiceAreaAnalysisLayer. Use this to map "
+            "accessibility around schools, hospitals, stations, depots, stores, "
+            "or emergency facilities at one or more travel cutoffs. Requires a "
+            "Network Analyst license; reads a network_dataset and facilities, then "
+            "writes solved polygon features to out_features inside PathGuard roots."
+        ),
         c.ServiceAreaInput,
         _service_area,
     ),
     (
         "route_analysis",
-        "Best route through ordered stops (MakeRouteAnalysisLayer). "
-        "Requires Network Analyst.",
+        (
+            "Solve the best route through ordered stop points using ArcPy Network "
+            "Analyst MakeRouteAnalysisLayer. Use this for A-to-B routing, multi-stop "
+            "field visits, logistics paths, inspection sequences, or travel-time "
+            "analysis over a configured network dataset. Requires a Network Analyst "
+            "license; reads stops and writes solved route features to out_features."
+        ),
         c.RouteAnalysisInput,
         _route_analysis,
     ),
     (
         "od_cost_matrix",
-        "Origin-destination cost matrix lines (MakeODCostMatrixAnalysisLayer). "
-        "Requires Network Analyst.",
+        (
+            "Solve origin-destination travel cost lines using ArcPy Network Analyst "
+            "MakeODCostMatrixAnalysisLayer. Use this to measure travel time or "
+            "distance between demand points and destinations such as services, jobs, "
+            "facilities, stores, or transit stops. Requires a Network Analyst license; "
+            "supports travel_mode and optional cutoff, then writes OD line results "
+            "to out_features inside PathGuard allowed roots."
+        ),
         c.OdCostMatrixInput,
         _od_cost_matrix,
     ),
     (
         "closest_facility",
-        "Nearest facility routes per incident (MakeClosestFacilityAnalysisLayer). "
-        "Requires Network Analyst.",
+        (
+            "Find nearest facility routes for incident points using ArcPy Network "
+            "Analyst MakeClosestFacilityAnalysisLayer. Use this to match demand or "
+            "incident locations to hospitals, stations, schools, depots, stores, or "
+            "other candidate facilities by network travel cost. Requires a Network "
+            "Analyst license; supports facilities_to_find and writes solved route "
+            "features to out_features."
+        ),
         c.ClosestFacilityInput,
         _closest_facility,
     ),

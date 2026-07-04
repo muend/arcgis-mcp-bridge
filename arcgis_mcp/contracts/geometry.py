@@ -1,4 +1,4 @@
-"""Input models — Category 3: Geometry & Analysis (catalog #33-55)."""
+﻿"""Input models â€” Category 3: Geometry & Analysis (catalog #33-55)."""
 
 from __future__ import annotations
 
@@ -644,71 +644,94 @@ class SymmetricalDifferenceInput(TwoLayerOverlay):
 
 
 class CreateFishnetInput(ToolInput):
-    """Input contract for creating a rectangular fishnet/grid feature class."""
+    """Input contract for creating a rectangular fishnet or analysis grid."""
 
     out_features: str = Field(
         ...,
         description=(
-            "Absolute output feature class path for the fishnet grid. The path "
-            "must be inside a configured PathGuard allowed root; existing outputs "
-            "require overwrite=true."
+            "Absolute output feature class path for the generated fishnet grid. "
+            "Use a geodatabase feature class path for project analysis outputs. "
+            "The path must be inside a configured PathGuard allowed root; existing "
+            "outputs require overwrite=true."
         ),
     )
     origin_x: float = Field(
         ...,
-        description="X coordinate of the fishnet origin point.",
+        description=(
+            "X coordinate of the fishnet origin point, usually the lower-left "
+            "corner of the grid in the output coordinate system."
+        ),
     )
     origin_y: float = Field(
         ...,
-        description="Y coordinate of the fishnet origin point.",
+        description=(
+            "Y coordinate of the fishnet origin point, usually the lower-left "
+            "corner of the grid in the output coordinate system."
+        ),
     )
     y_axis_y: Optional[float] = Field(
         default=None,
         description=(
-            "Y coordinate of the orientation point used to define the fishnet "
-            "Y-axis direction. Defaults to origin_y + 10 when omitted."
+            "Y coordinate of the orientation point used with origin_x to define "
+            "the fishnet Y-axis direction. Leave None to use origin_y + 10, which "
+            "creates a north-oriented grid in typical projected coordinate systems."
         ),
     )
     cell_width: float = Field(
         ...,
         gt=0,
-        description="Width of each fishnet cell in the output coordinate units.",
+        description=(
+            "Width of each fishnet cell in output coordinate system units. For "
+            "projected data this is usually meters or feet."
+        ),
     )
     cell_height: float = Field(
         ...,
         gt=0,
-        description="Height of each fishnet cell in the output coordinate units.",
+        description=(
+            "Height of each fishnet cell in output coordinate system units. Use "
+            "the same value as cell_width for square cells."
+        ),
     )
     rows: int = Field(
         ...,
         ge=1,
         le=10000,
-        description="Number of fishnet rows to create.",
+        description=(
+            "Number of fishnet rows to create. Combined with cell_height, this "
+            "controls the total grid height."
+        ),
     )
     columns: int = Field(
         ...,
         ge=1,
         le=10000,
-        description="Number of fishnet columns to create.",
+        description=(
+            "Number of fishnet columns to create. Combined with cell_width, this "
+            "controls the total grid width."
+        ),
     )
     geometry_type: Literal["POLYLINE", "POLYGON"] = Field(
         default="POLYGON",
         description=(
-            "Output grid geometry type. POLYGON creates cells as polygons; "
-            "POLYLINE creates grid lines."
+            "Output grid geometry type. Use POLYGON when cells should be analysis "
+            "zones, sampling units, planning units, or overlay features. Use "
+            "POLYLINE when only grid lines are needed for indexing or cartography."
         ),
     )
     create_label_points: bool = Field(
         default=False,
         description=(
-            "When true, ask ArcPy to create label points for fishnet cells where "
-            "supported by the geoprocessing tool."
+            "When true, ask ArcPy CreateFishnet to create label points for grid "
+            "cells where supported. Use this when cell centers are needed for "
+            "labels, sampling points, or downstream joins."
         ),
     )
     overwrite: bool = Field(
         default=False,
         description=(
-            "Set true only when replacing an existing output fishnet is intended."
+            "Set true only when replacing an existing fishnet output feature class "
+            "is intended."
         ),
     )
     path_fields: ClassVar[dict[str, PathRole]] = {"out_features": "write"}

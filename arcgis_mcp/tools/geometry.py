@@ -530,11 +530,14 @@ _SPECS = (
     (
         "create_fishnet",
         (
-            "Create a regular rectangular grid or fishnet feature class using "
-            "ArcPy CreateFishnet. Use this to build sampling grids, analysis "
-            "cells, index maps, planning units, or raster-like vector zones from "
-            "an origin, cell size, row/column count, and geometry type. Writes a "
-            "new grid dataset inside a PathGuard allowed root."
+            "Create a rectangular fishnet or grid feature class using ArcPy "
+            "CreateFishnet from explicit origin coordinates, optional Y-axis "
+            "orientation, cell width, cell height, row count, column count, label "
+            "point option, and output geometry type. Use this to generate sampling "
+            "grids, planning units, analysis zones, index maps, polygon tiles, or "
+            "polyline grid overlays before spatial join, summarize-within, raster "
+            "conversion, QA/QC, or map production. Writes out_features inside a "
+            "PathGuard allowed root; existing outputs require overwrite=true."
         ),
         c.CreateFishnetInput,
         _create_fishnet,
