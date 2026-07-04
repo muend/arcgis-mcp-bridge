@@ -190,55 +190,105 @@ _CAT = Category.EXPORT_LAYOUT
 _SPECS = (
     (
         "list_layouts",
-        "List layouts with page size and units (aprx.listLayouts).",
+        (
+            "List all layouts in a saved ArcGIS Pro .aprx project using "
+            "arcpy.mp listLayouts. Use this to discover layout names, page sizes, "
+            "and page units before exporting or modifying a layout. Reads the "
+            "project only and does not save or mutate the .aprx file."
+        ),
         c.ListLayoutsInput,
         _list_layouts,
     ),
     (
         "export_layout_pdf",
-        "Export a layout to PDF at a chosen DPI (layout.exportToPDF).",
+        (
+            "Export a selected ArcGIS Pro layout to a PDF file using "
+            "layout.exportToPDF. Use this for print-ready map sheets, reports, "
+            "submittals, or archival exports with controlled DPI and image quality. "
+            "Reads the .aprx project and writes out_pdf inside PathGuard allowed "
+            "roots; existing files require overwrite=true."
+        ),
         c.ExportLayoutPdfInput,
         _export_layout_pdf,
     ),
     (
         "export_layout_png",
-        "Export a layout to PNG at a chosen DPI (layout.exportToPNG).",
+        (
+            "Export a selected ArcGIS Pro layout to a PNG image using "
+            "layout.exportToPNG. Use this for previews, portfolio images, web "
+            "graphics, or presentation-ready map layouts with controlled DPI and "
+            "optional transparency. Reads the .aprx project and writes out_png "
+            "inside PathGuard allowed roots."
+        ),
         c.ExportLayoutPngInput,
         _export_layout_png,
     ),
     (
         "export_map_as_image",
-        "Export a map view directly to PNG without a layout (map.defaultView).",
+        (
+            "Export a map view directly to a PNG image using the map defaultView, "
+            "without requiring a layout. Use this for quick map snapshots, previews, "
+            "or automated image generation when a formal layout is unnecessary. "
+            "Reads the .aprx project and writes out_png with the requested width, "
+            "height, and resolution."
+        ),
         c.ExportMapAsImageInput,
         _export_map_as_image,
     ),
     (
         "set_map_scale",
-        "Set a layout map frame's camera scale (mf.camera.scale).",
+        (
+            "Set the camera scale denominator for a selected layout map frame "
+            "using arcpy.mp camera.scale. Use this before exporting a layout when "
+            "the map must be fixed to a known scale such as 1:1000 or 1:50,000. "
+            "This updates the .aprx project when save=true."
+        ),
         c.SetMapScaleInput,
         _set_map_scale,
     ),
     (
         "set_map_extent_from_layer",
-        "Fit a map frame's extent to a layer (mf.camera.setExtent).",
+        (
+            "Set a layout map frame extent to match a named layer using "
+            "mf.getLayerExtent and mf.camera.setExtent. Use this before exporting "
+            "a layout so the final map focuses on a dataset, study area, boundary, "
+            "or analysis result. This changes the map frame camera and saves the "
+            ".aprx project when save=true."
+        ),
         c.SetMapExtentFromLayerInput,
         _set_map_extent_from_layer,
     ),
     (
         "update_text_element",
-        "Rewrite a layout text element (elm.text).",
+        (
+            "Update the text content of a named layout text element using arcpy.mp "
+            "layout elements. Use this to automate titles, dates, subtitles, map "
+            "numbers, project names, notes, or report labels before export. This "
+            "modifies the selected layout and saves the .aprx project when save=true."
+        ),
         c.UpdateTextElementInput,
         _update_text_element,
     ),
     (
         "update_legend",
-        "Add or remove a layer in a layout legend (legend.addItem/removeItem).",
+        (
+            "Add or remove a layer entry in a selected layout legend using arcpy.mp "
+            "legend addItem or removeItem. Use this to synchronize legends with "
+            "automated layer changes before exporting maps. This modifies the "
+            "layout legend and saves the .aprx project when save=true."
+        ),
         c.UpdateLegendInput,
         _update_legend,
     ),
     (
         "set_layout_size",
-        "Change layout page dimensions (layout.pageWidth/pageHeight).",
+        (
+            "Change the physical page width and height of a selected ArcGIS Pro "
+            "layout using layout.pageWidth and layout.pageHeight. Use this to "
+            "switch between sheet sizes, portfolio formats, report pages, or "
+            "print/export templates. This modifies the layout and saves the .aprx "
+            "project when save=true."
+        ),
         c.SetLayoutSizeInput,
         _set_layout_size,
     ),

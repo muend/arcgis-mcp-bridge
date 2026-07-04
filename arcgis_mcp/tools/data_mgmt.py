@@ -210,157 +210,277 @@ _CAT = Category.DATA_MGMT
 _SPECS: tuple[tuple[str, str, type, Any, bool], ...] = (
     (
         "create_feature_class",
-        "Create a new feature class in a GDB (CreateFeatureclass).",
+        (
+            "Create an empty feature class inside an existing file geodatabase "
+            "using ArcPy CreateFeatureclass. Use this to prepare a controlled "
+            "output dataset with a chosen geometry type and optional WKID before "
+            "loading, editing, or analysis. Reads the target geodatabase path "
+            "inside a PathGuard allowed root and returns the created dataset."
+        ),
         c.CreateFeatureClassInput,
         _create_feature_class,
         False,
     ),
     (
         "delete_dataset",
-        "Delete a FC/table/raster (Delete). Irreversible; requires confirm=true.",
+        (
+            "Delete an existing feature class, table, raster, or geodatabase item "
+            "using ArcPy Delete. This operation is irreversible and mutates local "
+            "project data, so confirm=true is required. The target dataset must "
+            "be inside a configured PathGuard allowed root."
+        ),
         c.DeleteDatasetInput,
         _delete_dataset,
         True,
     ),
     (
         "copy_features",
-        "Copy features preserving CRS and schema (CopyFeatures).",
+        (
+            "Copy an existing feature class or layer to a new output feature "
+            "class using ArcPy CopyFeatures. Use this to create a safe working "
+            "copy while preserving geometry, attributes, schema, and spatial "
+            "reference. Reads in_features and writes out_features inside "
+            "PathGuard allowed roots; existing outputs require overwrite=true."
+        ),
         c.CopyFeaturesInput,
         _copy_features,
         False,
     ),
     (
         "rename_dataset",
-        "Rename a dataset inside its GDB (Rename).",
+        (
+            "Rename an existing dataset within its current workspace using ArcPy "
+            "Rename. Use this for controlled cleanup of intermediate feature "
+            "classes, tables, or rasters. This mutates the workspace namespace "
+            "but does not edit feature geometry or attribute values; the dataset "
+            "path must be inside a PathGuard allowed root."
+        ),
         c.RenameDatasetInput,
         _rename_dataset,
         False,
     ),
     (
         "add_field",
-        "Add one field to a table/FC (AddField).",
+        (
+            "Add one attribute field to an existing feature class or table using "
+            "ArcPy AddField. Use this to prepare schema before imports, joins, "
+            "calculations, or manual editing. Mutates the input dataset schema; "
+            "the dataset must be inside a PathGuard allowed root."
+        ),
         c.AddFieldInput,
         _add_field,
         False,
     ),
     (
         "delete_field",
-        "Drop fields from a table/FC (DeleteField). Requires confirm=true.",
+        (
+            "Delete one or more fields from an existing feature class or table "
+            "using ArcPy DeleteField. Use this only when unwanted attribute "
+            "columns should be permanently removed. This mutates the input schema "
+            "and drops data, so confirm=true is required."
+        ),
         c.DeleteFieldInput,
         _delete_field,
         True,
     ),
     (
         "calculate_field",
-        "Compute field values with an ARCADE (default, sandboxed) / SQL / "
-        "PYTHON3 expression (CalculateField). Overwrites column values: "
-        "requires confirm=true; PYTHON3 additionally executes code and is "
-        "refused without explicit confirmation.",
+        (
+            "Calculate values for an existing field using ArcPy CalculateField. "
+            "Use this for controlled attribute updates with ARCADE, SQL, or "
+            "PYTHON3 expressions. The default ARCADE mode is preferred for "
+            "LLM-facing workflows; PYTHON3 executes worker-side code and, like "
+            "all value overwrites, requires confirm=true."
+        ),
         c.CalculateFieldInput,
         _calculate_field,
         True,
     ),
     (
         "add_fields_batch",
-        "Add multiple fields in one call (AddFields).",
+        (
+            "Add multiple fields to an existing feature class or table in one "
+            "operation using ArcPy AddFields. Use this to prepare a complete "
+            "attribute schema before imports, calculations, joins, or QA/QC. "
+            "Mutates the input dataset schema; field names, types, aliases, and "
+            "lengths are validated before execution."
+        ),
         c.AddFieldsBatchInput,
         _add_fields_batch,
         False,
     ),
     (
         "get_field_info",
-        "List field names, types, lengths and aliases (ListFields).",
+        (
+            "List field metadata for an existing feature class or table using "
+            "ArcPy ListFields. Use this to inspect schema before calculating, "
+            "deleting, joining, or exporting attributes. Returns field names, "
+            "types, lengths, aliases, and nullable status without modifying data."
+        ),
         c.GetFieldInfoInput,
         _get_field_info,
         False,
     ),
     (
         "get_feature_count",
-        "Return the feature/row count (GetCount).",
+        (
+            "Return the row or feature count for an existing dataset using ArcPy "
+            "GetCount. Use this as a lightweight validation step before and after "
+            "geoprocessing, filtering, import, export, or QA/QC workflows. Reads "
+            "one dataset inside a PathGuard allowed root and does not modify data."
+        ),
         c.GetFeatureCountInput,
         _get_feature_count,
         False,
     ),
     (
         "describe_dataset",
-        "Return CRS, geometry type and extent metadata (Describe).",
+        (
+            "Describe an existing feature class, table, raster, or geodatabase "
+            "item using ArcPy Describe. Use this to inspect data type, geometry "
+            "type, coordinate reference system, and extent before choosing an "
+            "analysis tool. Reads metadata only and does not modify the dataset."
+        ),
         c.DescribeDatasetInput,
         _describe_dataset,
         False,
     ),
     (
         "create_file_gdb",
-        "Create a new file geodatabase (CreateFileGDB).",
+        (
+            "Create a new file geodatabase using ArcPy CreateFileGDB. Use this "
+            "to prepare a workspace for scratch outputs, copied data, imports, "
+            "or project-specific analysis results. The parent folder must exist "
+            "inside a PathGuard allowed root; the tool returns the created "
+            "geodatabase path."
+        ),
         c.CreateFileGdbInput,
         _create_file_gdb,
         False,
     ),
     (
         "compact_gdb",
-        "Compact a GDB to reclaim space (Compact).",
+        (
+            "Compact an existing file geodatabase using ArcPy Compact. Use this "
+            "as maintenance after heavy editing, deletion, or intermediate output "
+            "cleanup to reclaim storage and improve geodatabase performance. "
+            "Mutates the geodatabase storage layout but not feature content."
+        ),
         c.CompactGdbInput,
         _compact_gdb,
         False,
     ),
     (
         "export_to_shapefile",
-        "Export a FC to shapefile in a folder (FeatureClassToShapefile).",
+        (
+            "Export a feature class to shapefile format using ArcPy "
+            "FeatureClassToShapefile. Use this when data must be shared with "
+            "legacy GIS tools or systems that require shapefiles. Reads the input "
+            "features and writes shapefile components into an existing output "
+            "folder inside PathGuard allowed roots."
+        ),
         c.ExportToShapefileInput,
         _export_to_shapefile,
         False,
     ),
     (
         "export_to_geojson",
-        "Export features to GeoJSON in WGS84 (FeaturesToJSON).",
+        (
+            "Export features to a WGS84 GeoJSON file using ArcPy FeaturesToJSON. "
+            "Use this to share vector data with web maps, APIs, notebooks, or "
+            "non-Esri tools. Reads in_features and writes an output .geojson file "
+            "inside PathGuard allowed roots; existing files require overwrite=true."
+        ),
         c.ExportToGeojsonInput,
         _export_to_geojson,
         False,
     ),
     (
         "import_from_geojson",
-        "Create a FC from GeoJSON (JSONToFeatures).",
+        (
+            "Convert a GeoJSON file into an ArcGIS feature class using ArcPy "
+            "JSONToFeatures. Use this to bring web, API, or exchange-format vector "
+            "data into a geodatabase for ArcGIS analysis. Reads an input .geojson "
+            "file and writes out_features inside PathGuard allowed roots; existing "
+            "outputs require overwrite=true."
+        ),
         c.ImportFromGeojsonInput,
         _import_from_geojson,
         False,
     ),
     (
         "table_to_excel",
-        "Export an attribute table to .xlsx (TableToExcel).",
+        (
+            "Export an attribute table or feature class table to an Excel workbook "
+            "using ArcPy TableToExcel. Use this to share tabular GIS attributes "
+            "with analysts, reports, or spreadsheet workflows. Reads the input "
+            "table and writes an .xlsx file inside PathGuard allowed roots; "
+            "existing files require overwrite=true."
+        ),
         c.TableToExcelInput,
         _table_to_excel,
         False,
     ),
     (
         "excel_to_table",
-        "Import an .xlsx sheet as a GDB table (ExcelToTable).",
+        (
+            "Import an Excel worksheet into a geodatabase table using ArcPy "
+            "ExcelToTable. Use this to bring spreadsheet-based attributes, lookup "
+            "tables, or external tabular data into ArcGIS. Reads an .xlsx workbook "
+            "and writes a geodatabase table inside PathGuard allowed roots; existing "
+            "outputs require overwrite=true."
+        ),
         c.ExcelToTableInput,
         _excel_to_table,
         False,
     ),
     (
         "feature_to_csv",
-        "Export attributes to CSV (ExportTable, Pro 3.x).",
+        (
+            "Export a feature class or table to a CSV file using ArcPy ExportTable. "
+            "Use this to move attribute data into notebooks, data pipelines, reports, "
+            "or non-GIS tools. Reads the input table or feature class and writes a "
+            ".csv output inside PathGuard allowed roots; existing files require "
+            "overwrite=true."
+        ),
         c.FeatureToCsvInput,
         _feature_to_csv,
         False,
     ),
     (
         "get_extent",
-        "Return xmin/ymin/xmax/ymax of a dataset (Describe().extent).",
+        (
+            "Return xmin, ymin, xmax, ymax, and CRS metadata for an existing dataset "
+            "using ArcPy Describe().extent. Use this to understand spatial coverage "
+            "before clipping, map export, fishnet creation, raster analysis, or "
+            "spatial QA/QC. Reads metadata only and does not modify the dataset."
+        ),
         c.GetExtentInput,
         _get_extent,
         False,
     ),
     (
         "calculate_geometry",
-        "Write area/length/centroid values into a field (CalculateGeometryAttributes).",
+        (
+            "Calculate area, length, perimeter, centroid, or point coordinate values "
+            "into an attribute field using ArcPy CalculateGeometryAttributes. Use "
+            "this to populate measurement fields for reporting, QA/QC, labeling, "
+            "or downstream analysis. Mutates the input dataset by writing geometry "
+            "values into the specified field."
+        ),
         c.CalculateGeometryInput,
         _calculate_geometry,
         False,
     ),
     (
         "add_xy_coordinates",
-        "Add POINT_X/POINT_Y fields to a point FC (AddXY).",
+        (
+            "Add or update POINT_X and POINT_Y coordinate fields on point features "
+            "using ArcPy AddXY. Use this when point coordinates are needed for "
+            "export, QA/QC, labeling, tabular analysis, or integration with non-GIS "
+            "systems. Mutates the input dataset by adding or updating coordinate "
+            "fields, so run it on an intended working dataset."
+        ),
         c.AddXyCoordinatesInput,
         _add_xy_coordinates,
         False,
