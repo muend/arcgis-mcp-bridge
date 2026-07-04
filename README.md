@@ -6,7 +6,7 @@
 ![Tools](https://img.shields.io/badge/tools-100-orange)
 ![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)
 ![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)
-
+[![arcgis-mcp-bridge MCP server](https://glama.ai/mcp/servers/muend/arcgis-mcp-bridge/badges/score.svg)](https://glama.ai/mcp/servers/muend/arcgis-mcp-bridge)
 
 
 # arcgis-mcp-bridge
