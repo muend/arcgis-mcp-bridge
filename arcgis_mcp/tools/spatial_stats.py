@@ -104,33 +104,66 @@ _CAT = Category.SPATIAL_STATS
 _SPECS = (
     (
         "mean_center",
-        "Geometric mean center of features, optionally weighted (MeanCenter).",
+        (
+            "Calculate the geographic mean center of input features using ArcPy "
+            "MeanCenter and write the result as a point feature class. Use this "
+            "to summarize the central tendency of incidents, facilities, parcels, "
+            "demand points, or grouped spatial observations. Supports optional "
+            "weight_field and case_field parameters; reads in_features and writes "
+            "out_features inside PathGuard allowed roots."
+        ),
         c.MeanCenterInput,
         _mean_center,
     ),
     (
         "directional_distribution",
-        "Standard deviational ellipse of a point distribution "
-        "(DirectionalDistribution).",
+        (
+            "Create standard deviational ellipse features using ArcPy "
+            "DirectionalDistribution to summarize spatial orientation, dispersion, "
+            "and directional trend. Use this for point-pattern analysis, movement "
+            "corridors, incident spread, market/service-area orientation, or "
+            "comparison between groups. Supports ellipse_size and optional "
+            "weight_field; writes a new output feature class without modifying inputs."
+        ),
         c.DirectionalDistributionInput,
         _directional_distribution,
     ),
     (
         "kernel_density",
-        "Kernel density surface from points/lines (sa.KernelDensity). "
-        "Requires Spatial Analyst.",
+        (
+            "Estimate a continuous density raster from point or polyline features "
+            "using Spatial Analyst KernelDensity. Use this for hotspot surfaces, "
+            "incident intensity, service demand, accessibility pressure, crime or "
+            "event density, and other smoothed spatial concentration maps. Requires "
+            "a Spatial Analyst license; supports population_field, cell_size, and "
+            "search_radius and writes out_raster inside PathGuard roots."
+        ),
         c.KernelDensityInput,
         _kernel_density,
     ),
     (
         "hotspot_analysis",
-        "Getis-Ord Gi* hot/cold spot clustering (HotSpots).",
+        (
+            "Run Getis-Ord Gi* hot and cold spot analysis using ArcPy HotSpots and "
+            "write a feature class with GiZScore, GiPValue, and Gi_Bin results. "
+            "Use this to identify statistically significant clusters of high and "
+            "low values in incidents, socioeconomic indicators, service demand, or "
+            "environmental measurements. Supports spatial conceptualization, "
+            "distance method, and optional distance band."
+        ),
         c.HotspotAnalysisInput,
         _hotspot_analysis,
     ),
     (
         "spatial_autocorrelation",
-        "Global Moran's I index, z-score and p-value (SpatialAutocorrelation).",
+        (
+            "Calculate Global Moran's I using ArcPy SpatialAutocorrelation and "
+            "return scalar statistics including Moran's Index, z-score, and p-value. "
+            "Use this to test whether a numeric attribute is clustered, dispersed, "
+            "or spatially random before choosing local hotspot, cluster, or spatial "
+            "modeling workflows. Reads in_features only and does not create or "
+            "modify datasets."
+        ),
         c.SpatialAutocorrelationInput,
         _spatial_autocorrelation,
     ),

@@ -94,8 +94,14 @@ register(
     ToolSpec(
         "define_projection",
         _CAT,
-        "Assign a CRS (by WKID/EPSG) to a dataset with an unknown spatial "
-        "reference (DefineProjection). Metadata-only; requires confirm=true.",
+        (
+            "Assign coordinate reference metadata to an existing dataset using "
+            "ArcPy DefineProjection and a WKID or EPSG code. Use this only when "
+            "the dataset coordinates are already in the specified CRS but the "
+            "spatial reference is missing or unknown. This is metadata-only, does "
+            "not transform coordinates, mutates the dataset definition, and "
+            "requires confirm=true."
+        ),
         c.DefineProjectionInput,
         _define_projection,
         destructive=True,
@@ -105,7 +111,14 @@ register(
     ToolSpec(
         "project_features",
         _CAT,
-        "Transform a vector dataset into another CRS/datum (Project).",
+        (
+            "Transform a vector feature class or layer into another coordinate "
+            "reference system using ArcPy Project. Use this when feature geometry "
+            "coordinates must be reprojected for overlay, distance measurement, "
+            "map export, analysis, or alignment with other GIS datasets. Reads "
+            "in_features, writes out_features inside PathGuard allowed roots, and "
+            "supports an optional geographic transform_method when datums differ."
+        ),
         c.ProjectFeaturesInput,
         _project_features,
     )
@@ -114,7 +127,13 @@ register(
     ToolSpec(
         "get_spatial_reference",
         _CAT,
-        "Look up a CRS by WKID: name, type, linear/angular units, datum.",
+        (
+            "Look up an ArcGIS spatial reference by WKID or EPSG code using "
+            "arcpy.SpatialReference. Use this before projection workflows to "
+            "verify the target CRS name, type, datum, and linear or angular units. "
+            "This is a pure lookup with no filesystem input or output and does "
+            "not modify datasets."
+        ),
         c.GetSpatialReferenceInput,
         _get_spatial_reference,
     )
@@ -123,8 +142,14 @@ register(
     ToolSpec(
         "project_raster",
         _CAT,
-        "Reproject a raster with NEAREST/BILINEAR/CUBIC/MAJORITY resampling "
-        "(ProjectRaster).",
+        (
+            "Reproject a raster dataset into another coordinate reference system "
+            "using ArcPy ProjectRaster. Use this to align DEMs, imagery, classified "
+            "rasters, or analysis grids with a project CRS before overlay, map "
+            "algebra, extraction, or export. Reads in_raster, writes out_raster "
+            "inside PathGuard allowed roots, and exposes resampling_type and "
+            "optional cell_size for controlling raster cell interpolation."
+        ),
         c.ProjectRasterInput,
         _project_raster,
     )

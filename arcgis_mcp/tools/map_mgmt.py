@@ -156,8 +156,14 @@ register(
     ToolSpec(
         "add_layer_to_map",
         _CAT,
-        "Add a dataset to a map inside an .aprx project (arcpy.mp addDataFromPath). "
-        "Operates on the saved project file, not a live Pro session.",
+        (
+            "Add a dataset to a map inside a saved ArcGIS Pro .aprx project using "
+            "arcpy.mp addDataFromPath. Use this to load feature classes, rasters, "
+            "tables, or other supported GIS datasets into an existing project map "
+            "before styling, exporting, or layout automation. Operates on the saved "
+            ".aprx file, not a live ArcGIS Pro session, and saves the project when "
+            "save=true."
+        ),
         c.AddLayerToMapInput,
         _add_layer_to_map,
     )
@@ -166,7 +172,13 @@ register(
     ToolSpec(
         "remove_layer_from_map",
         _CAT,
-        "Remove a layer from a map (map.removeLayer). Requires confirm=true.",
+        (
+            "Remove a named layer from a map inside a saved ArcGIS Pro .aprx project "
+            "using map.removeLayer. Use this for controlled map cleanup before "
+            "export, packaging, or automated project updates. This changes the map "
+            "contents but does not delete the underlying dataset; confirm=true is "
+            "required because the project structure is mutated."
+        ),
         c.RemoveLayerFromMapInput,
         _remove_layer_from_map,
         destructive=True,
@@ -176,7 +188,12 @@ register(
     ToolSpec(
         "list_maps",
         _CAT,
-        "List all map names inside an .aprx project (aprx.listMaps).",
+        (
+            "List map names inside a saved ArcGIS Pro .aprx project using "
+            "aprx.listMaps. Use this discovery tool before map-scoped operations "
+            "when the target map name is unknown or when validating project contents. "
+            "Reads the project file only and does not modify or save it."
+        ),
         c.ListMapsInput,
         _list_maps,
     )
@@ -185,7 +202,13 @@ register(
     ToolSpec(
         "list_layers_in_map",
         _CAT,
-        "List layers of one map with visibility, group flag and data source.",
+        (
+            "List layers in a selected map with visibility, group-layer status, and "
+            "data source information where available. Use this to discover exact "
+            "Contents-pane layer names before visibility, ordering, symbology, rename, "
+            "or zoom operations. Reads the saved .aprx project only and does not "
+            "modify layer state."
+        ),
         c.ListLayersInMapInput,
         _list_layers_in_map,
     )
@@ -194,7 +217,12 @@ register(
     ToolSpec(
         "set_layer_visibility",
         _CAT,
-        "Show or hide a layer (lyr.visible).",
+        (
+            "Show or hide a named layer in a selected ArcGIS Pro map by updating "
+            "lyr.visible. Use this before layout or map export to control which "
+            "datasets appear in the final map. This mutates layer visibility in the "
+            "saved .aprx project when save=true but does not alter the source dataset."
+        ),
         c.SetLayerVisibilityInput,
         _set_layer_visibility,
     )
@@ -203,8 +231,12 @@ register(
     ToolSpec(
         "move_layer_order",
         _CAT,
-        "Change draw order: move a layer BEFORE/AFTER a reference layer "
-        "(map.moveLayer).",
+        (
+            "Move a named layer before or after a reference layer in the map drawing "
+            "order using map.moveLayer. Use this to control cartographic stacking, "
+            "for example placing boundaries above imagery or analysis results above "
+            "base layers. This updates the saved .aprx project when save=true."
+        ),
         c.MoveLayerOrderInput,
         _move_layer_order,
     )
@@ -213,7 +245,12 @@ register(
     ToolSpec(
         "rename_layer",
         _CAT,
-        "Rename a layer as shown in the Contents pane (lyr.name).",
+        (
+            "Rename a layer as displayed in the ArcGIS Pro Contents pane by updating "
+            "lyr.name. Use this to make automated map outputs clearer before export, "
+            "handoff, or presentation. This renames the map layer only, does not "
+            "rename the underlying dataset, and saves the .aprx project when save=true."
+        ),
         c.RenameLayerInput,
         _rename_layer,
     )
@@ -222,7 +259,13 @@ register(
     ToolSpec(
         "zoom_to_layer",
         _CAT,
-        "Set the map's default camera to a layer's extent.",
+        (
+            "Set the selected map's default camera extent to match a named layer's "
+            "data extent. Use this before exporting a map view or reopening the "
+            ".aprx so the map focuses on a study area, boundary, analysis result, "
+            "or target dataset. Reads the layer data source extent, updates the map "
+            "defaultCamera, and saves the project when save=true."
+        ),
         c.ZoomToLayerInput,
         _zoom_to_layer,
     )
@@ -231,7 +274,13 @@ register(
     ToolSpec(
         "set_layer_symbology",
         _CAT,
-        "Apply symbology from a .lyrx file (ApplySymbologyFromLayer).",
+        (
+            "Apply cartographic symbology from a source .lyrx layer file to a named "
+            "target layer using ArcPy ApplySymbologyFromLayer. Use this to standardize "
+            "colors, classifications, labels, renderers, and map styling before export "
+            "or project delivery. Reads the target layer and .lyrx file inside "
+            "PathGuard allowed roots and saves the .aprx project when save=true."
+        ),
         c.SetLayerSymbologyInput,
         _set_layer_symbology,
     )
@@ -240,7 +289,13 @@ register(
     ToolSpec(
         "save_project",
         _CAT,
-        "Save the .aprx project file (aprx.save).",
+        (
+            "Explicitly save a saved ArcGIS Pro .aprx project using aprx.save. Use "
+            "this after a sequence of map, layer, layout, visibility, camera, or "
+            "symbology changes when the project must be persisted before export or "
+            "handoff. Operates on the saved .aprx file and returns the saved project "
+            "path."
+        ),
         c.SaveProjectInput,
         _save_project,
     )
