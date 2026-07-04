@@ -1,0 +1,490 @@
+{
+  "manifest_version": "0.4",
+  "name": "arcgis-mcp-bridge",
+  "display_name": "ArcGIS MCP Bridge",
+  "version": "0.6.3",
+  "description": "Secure, local-first MCP server exposing ArcGIS Pro's ArcPy engine (100 geoprocessing tools) to Claude over stdio JSON-RPC.",
+  "long_description": "arcgis-mcp-bridge exposes 100 declarative ArcPy geoprocessing tools across 10 verticals (data management, geometry, raster, network, spatial statistics, layout, and more) through a two-process architecture: an arcpy-free async MCP host (Layer A) and a subprocess ArcPy isolation worker (Layer B). A PathGuard sandbox constrains every filesystem argument to configured roots, and ten state-mutating tools require an explicit confirm token. Requires a licensed ArcGIS Pro installation on Windows; set ARCPY_PYTHON_PATH to the licensed interpreter (or a cloned arcgis-mcp-env). Call health_check first — it proves the full server->worker pipeline without importing arcpy.",
+  "author": {
+    "name": "muend",
+    "url": "https://github.com/muend"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/muend/arcgis-mcp-bridge.git"
+  },
+  "homepage": "https://github.com/muend/arcgis-mcp-bridge",
+  "documentation": "https://github.com/muend/arcgis-mcp-bridge#readme",
+  "support": "https://github.com/muend/arcgis-mcp-bridge/issues",
+  "license": "Apache-2.0",
+  "keywords": [
+    "arcgis",
+    "arcpy",
+    "gis",
+    "geospatial",
+    "mcp",
+    "geoai",
+    "esri",
+    "model-context-protocol"
+  ],
+  "server": {
+    "type": "uv",
+    "entry_point": "arcgis_mcp/server.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "${__dirname}",
+        "arcgis-mcp-server"
+      ],
+      "env": {
+        "ARCPY_PYTHON_PATH": "${user_config.arcpy_python_path}",
+        "ARCGIS_MCP_ALLOWED_ROOTS": "${user_config.allowed_roots}",
+        "ARCGIS_MCP_SCRATCH_GDB": "${user_config.scratch_gdb}",
+        "ARCGIS_MCP_MAX_WORKERS": "${user_config.max_workers}"
+      }
+    }
+  },
+  "tools_generated": false,
+  "compatibility": {
+    "claude_desktop": ">=0.10.0",
+    "platforms": [
+      "win32"
+    ],
+    "runtimes": {
+      "python": ">=3.11,<4.0"
+    }
+  },
+  "user_config": {
+    "arcpy_python_path": {
+      "type": "file",
+      "title": "ArcGIS Pro Python interpreter",
+      "description": "Path to python.exe of your licensed ArcGIS Pro interpreter (or a cloned arcgis-mcp-env). Required — this is the Layer B worker that runs ArcPy.",
+      "required": true
+    },
+    "allowed_roots": {
+      "type": "directory",
+      "title": "Allowed data root (PathGuard)",
+      "description": "Root directory the server is permitted to read/write. All tool paths are confined here. Defaults to your ArcGIS Projects folder.",
+      "required": false,
+      "default": "${DOCUMENTS}/ArcGIS/Projects"
+    },
+    "scratch_gdb": {
+      "type": "directory",
+      "title": "Scratch geodatabase (optional)",
+      "description": "Default output workspace (a .gdb folder). Must already exist. Leave empty to use the server default.",
+      "required": false
+    },
+    "max_workers": {
+      "type": "number",
+      "title": "Max concurrent ArcPy workers",
+      "description": "Concurrent worker subprocess ceiling. Protects license seats and RAM.",
+      "default": 2,
+      "min": 1,
+      "max": 8
+    }
+  },
+  "tools": [
+    {
+      "name": "define_projection",
+      "description": "Assign coordinate reference metadata to an existing dataset using ArcPy DefineProjection and a WKID or EPSG code. Use this only when the dataset coordinates are already in the specified CRS but the spatial reference is missing or unknown. This is metadata-only, does not transform coordinates, mutates the dataset definition, and requires confirm=true. [Destructive: requires confirm=true.]"
+    },
+    {
+      "name": "get_spatial_reference",
+      "description": "Look up an ArcGIS spatial reference by WKID or EPSG code using arcpy.SpatialReference. Use this before projection workflows to verify the target CRS name, type, datum, and linear or angular units. This is a pure lookup with no filesystem input or output and does not modify datasets."
+    },
+    {
+      "name": "project_features",
+      "description": "Transform a vector feature class or layer into another coordinate reference system using ArcPy Project. Use this when feature geometry coordinates must be reprojected for overlay, distance measurement, map export, analysis, or alignment with other GIS datasets. Reads in_features, writes out_features inside PathGuard allowed roots, and supports an optional geographic transform_method when datums differ."
+    },
+    {
+      "name": "project_raster",
+      "description": "Reproject a raster dataset into another coordinate reference system using ArcPy ProjectRaster. Use this to align DEMs, imagery, classified rasters, or analysis grids with a project CRS before overlay, map algebra, extraction, or export. Reads in_raster, writes out_raster inside PathGuard allowed roots, and exposes resampling_type and optional cell_size for controlling raster cell interpolation."
+    },
+    {
+      "name": "add_field",
+      "description": "Add one attribute field to an existing feature class or table using ArcPy AddField. Use this to prepare schema before imports, joins, calculations, or manual editing. Mutates the input dataset schema; the dataset must be inside a PathGuard allowed root."
+    },
+    {
+      "name": "add_fields_batch",
+      "description": "Add multiple fields to an existing feature class or table in one operation using ArcPy AddFields. Use this to prepare a complete attribute schema before imports, calculations, joins, or QA/QC. Mutates the input dataset schema; field names, types, aliases, and lengths are validated before execution."
+    },
+    {
+      "name": "add_xy_coordinates",
+      "description": "Add or update POINT_X and POINT_Y coordinate fields on point features using ArcPy AddXY. Use this when point coordinates are needed for export, QA/QC, labeling, tabular analysis, or integration with non-GIS systems. Mutates the input dataset by adding or updating coordinate fields, so run it on an intended working dataset."
+    },
+    {
+      "name": "calculate_field",
+      "description": "Calculate values for an existing field using ArcPy CalculateField. Use this for controlled attribute updates with ARCADE, SQL, or PYTHON3 expressions. The default ARCADE mode is preferred for LLM-facing workflows; PYTHON3 executes worker-side code and, like all value overwrites, requires confirm=true. [Destructive: requires confirm=true.]"
+    },
+    {
+      "name": "calculate_geometry",
+      "description": "Calculate area, length, perimeter, centroid, or point coordinate values into an attribute field using ArcPy CalculateGeometryAttributes. Use this to populate measurement fields for reporting, QA/QC, labeling, or downstream analysis. Mutates the input dataset by writing geometry values into the specified field."
+    },
+    {
+      "name": "compact_gdb",
+      "description": "Compact an existing file geodatabase using ArcPy Compact. Use this as maintenance after heavy editing, deletion, or intermediate output cleanup to reclaim storage and improve geodatabase performance. Mutates the geodatabase storage layout but not feature content."
+    },
+    {
+      "name": "copy_features",
+      "description": "Copy an existing feature class or layer to a new output feature class using ArcPy CopyFeatures. Use this to create a safe working copy while preserving geometry, attributes, schema, and spatial reference. Reads in_features and writes out_features inside PathGuard allowed roots; existing outputs require overwrite=true."
+    },
+    {
+      "name": "create_feature_class",
+      "description": "Create an empty feature class inside an existing file geodatabase using ArcPy CreateFeatureclass. Use this to prepare a controlled output dataset with a chosen geometry type and optional WKID before loading, editing, or analysis. Reads the target geodatabase path inside a PathGuard allowed root and returns the created dataset."
+    },
+    {
+      "name": "create_file_gdb",
+      "description": "Create a new file geodatabase using ArcPy CreateFileGDB. Use this to prepare a workspace for scratch outputs, copied data, imports, or project-specific analysis results. The parent folder must exist inside a PathGuard allowed root; the tool returns the created geodatabase path."
+    },
+    {
+      "name": "delete_dataset",
+      "description": "Delete an existing feature class, table, raster, or geodatabase item using ArcPy Delete. This operation is irreversible and mutates local project data, so confirm=true is required. The target dataset must be inside a configured PathGuard allowed root. [Destructive: requires confirm=true.]"
+    },
+    {
+      "name": "delete_field",
+      "description": "Delete one or more fields from an existing feature class or table using ArcPy DeleteField. Use this only when unwanted attribute columns should be permanently removed. This mutates the input schema and drops data, so confirm=true is required. [Destructive: requires confirm=true.]"
+    },
+    {
+      "name": "describe_dataset",
+      "description": "Describe an existing feature class, table, raster, or geodatabase item using ArcPy Describe. Use this to inspect data type, geometry type, coordinate reference system, and extent before choosing an analysis tool. Reads metadata only and does not modify the dataset."
+    },
+    {
+      "name": "excel_to_table",
+      "description": "Import an Excel worksheet into a geodatabase table using ArcPy ExcelToTable. Use this to bring spreadsheet-based attributes, lookup tables, or external tabular data into ArcGIS. Reads an .xlsx workbook and writes a geodatabase table inside PathGuard allowed roots; existing outputs require overwrite=true."
+    },
+    {
+      "name": "export_to_geojson",
+      "description": "Export features to a WGS84 GeoJSON file using ArcPy FeaturesToJSON. Use this to share vector data with web maps, APIs, notebooks, or non-Esri tools. Reads in_features and writes an output .geojson file inside PathGuard allowed roots; existing files require overwrite=true."
+    },
+    {
+      "name": "export_to_shapefile",
+      "description": "Export a feature class to shapefile format using ArcPy FeatureClassToShapefile. Use this when data must be shared with legacy GIS tools or systems that require shapefiles. Reads the input features and writes shapefile components into an existing output folder inside PathGuard allowed roots."
+    },
+    {
+      "name": "feature_to_csv",
+      "description": "Export a feature class or table to a CSV file using ArcPy ExportTable. Use this to move attribute data into notebooks, data pipelines, reports, or non-GIS tools. Reads the input table or feature class and writes a .csv output inside PathGuard allowed roots; existing files require overwrite=true."
+    },
+    {
+      "name": "get_extent",
+      "description": "Return xmin, ymin, xmax, ymax, and CRS metadata for an existing dataset using ArcPy Describe().extent. Use this to understand spatial coverage before clipping, map export, fishnet creation, raster analysis, or spatial QA/QC. Reads metadata only and does not modify the dataset."
+    },
+    {
+      "name": "get_feature_count",
+      "description": "Return the row or feature count for an existing dataset using ArcPy GetCount. Use this as a lightweight validation step before and after geoprocessing, filtering, import, export, or QA/QC workflows. Reads one dataset inside a PathGuard allowed root and does not modify data."
+    },
+    {
+      "name": "get_field_info",
+      "description": "List field metadata for an existing feature class or table using ArcPy ListFields. Use this to inspect schema before calculating, deleting, joining, or exporting attributes. Returns field names, types, lengths, aliases, and nullable status without modifying data."
+    },
+    {
+      "name": "import_from_geojson",
+      "description": "Convert a GeoJSON file into an ArcGIS feature class using ArcPy JSONToFeatures. Use this to bring web, API, or exchange-format vector data into a geodatabase for ArcGIS analysis. Reads an input .geojson file and writes out_features inside PathGuard allowed roots; existing outputs require overwrite=true."
+    },
+    {
+      "name": "rename_dataset",
+      "description": "Rename an existing dataset within its current workspace using ArcPy Rename. Use this for controlled cleanup of intermediate feature classes, tables, or rasters. This mutates the workspace namespace but does not edit feature geometry or attribute values; the dataset path must be inside a PathGuard allowed root."
+    },
+    {
+      "name": "table_to_excel",
+      "description": "Export an attribute table or feature class table to an Excel workbook using ArcPy TableToExcel. Use this to share tabular GIS attributes with analysts, reports, or spreadsheet workflows. Reads the input table and writes an .xlsx file inside PathGuard allowed roots; existing files require overwrite=true."
+    },
+    {
+      "name": "append_features",
+      "description": "Append rows from one or more feature classes or tables into an existing target dataset using ArcPy Append. Use this to load reviewed data, merge field-compatible updates, or add processed batches into a live target. This mutates the target dataset by inserting rows, so confirm=true is required. [Destructive: requires confirm=true.]"
+    },
+    {
+      "name": "check_geometry",
+      "description": "Check a feature class for geometry problems using ArcPy CheckGeometry and write the findings to an output table. Use this as a non-mutating QA/QC step before repair_geometry, overlay, topology validation, conversion, or export. Reads the input features and writes a report table inside PathGuard allowed roots."
+    },
+    {
+      "name": "delete_identical",
+      "description": "Delete duplicate rows from a feature class or table using ArcPy DeleteIdentical based on selected fields and optional geometry tolerance. Use this only on an intended working dataset to remove duplicate records. This operation is irreversible and mutates the input dataset, so confirm=true is required. [Destructive: requires confirm=true.]"
+    },
+    {
+      "name": "detect_feature_changes",
+      "description": "Detect spatial or attribute changes between updated features and a reference feature dataset using ArcPy DetectFeatureChanges. Use this for QA/QC, version comparison, update review, or identifying changed features within a search tolerance. Reads update_features and base_features and writes a new out_features change dataset without mutating the originals."
+    },
+    {
+      "name": "eliminate_polygon_part",
+      "description": "Remove small polygon holes or parts using ArcPy EliminatePolygonPart and write a cleaned output feature class. Use this for cartographic cleanup, removing sliver holes, or simplifying polygon interiors by area or percentage thresholds. Reads in_features and writes out_features without modifying the source dataset."
+    },
+    {
+      "name": "repair_geometry",
+      "description": "Repair invalid feature geometry in place using ArcPy RepairGeometry. Use this after check_geometry reports geometry problems or before overlay, topology, network, or export operations that require valid shapes. This rewrites geometry and may delete null geometries, so confirm=true is required. [Destructive: requires confirm=true.]"
+    },
+    {
+      "name": "topology_check",
+      "description": "Validate a geodatabase topology using ArcPy ValidateTopology. Use this to refresh topology rule validation after editing, appending, repair, or geometry cleanup workflows. Reads the topology dataset and returns validation metadata; inspect the topology error feature classes in ArcGIS Pro for rule violations."
+    },
+    {
+      "name": "export_layout_pdf",
+      "description": "Export a selected ArcGIS Pro layout to a PDF file using layout.exportToPDF. Use this for print-ready map sheets, reports, submittals, or archival exports with controlled DPI and image quality. Reads the .aprx project and writes out_pdf inside PathGuard allowed roots; existing files require overwrite=true."
+    },
+    {
+      "name": "export_layout_png",
+      "description": "Export a selected ArcGIS Pro layout to a PNG image using layout.exportToPNG. Use this for previews, portfolio images, web graphics, or presentation-ready map layouts with controlled DPI and optional transparency. Reads the .aprx project and writes out_png inside PathGuard allowed roots."
+    },
+    {
+      "name": "export_map_as_image",
+      "description": "Export a map view directly to a PNG image using the map defaultView, without requiring a layout. Use this for quick map snapshots, previews, or automated image generation when a formal layout is unnecessary. Reads the .aprx project and writes out_png with the requested width, height, and resolution."
+    },
+    {
+      "name": "list_layouts",
+      "description": "List all layouts in a saved ArcGIS Pro .aprx project using arcpy.mp listLayouts. Use this to discover layout names, page sizes, and page units before exporting or modifying a layout. Reads the project only and does not save or mutate the .aprx file."
+    },
+    {
+      "name": "set_layout_size",
+      "description": "Change the physical page width and height of a selected ArcGIS Pro layout using layout.pageWidth and layout.pageHeight. Use this to switch between sheet sizes, portfolio formats, report pages, or print/export templates. This modifies the layout and saves the .aprx project when save=true."
+    },
+    {
+      "name": "set_map_extent_from_layer",
+      "description": "Set a layout map frame extent to match a named layer using mf.getLayerExtent and mf.camera.setExtent. Use this before exporting a layout so the final map focuses on a dataset, study area, boundary, or analysis result. This changes the map frame camera and saves the .aprx project when save=true."
+    },
+    {
+      "name": "set_map_scale",
+      "description": "Set the camera scale denominator for a selected layout map frame using arcpy.mp camera.scale. Use this before exporting a layout when the map must be fixed to a known scale such as 1:1000 or 1:50,000. This updates the .aprx project when save=true."
+    },
+    {
+      "name": "update_legend",
+      "description": "Add or remove a layer entry in a selected layout legend using arcpy.mp legend addItem or removeItem. Use this to synchronize legends with automated layer changes before exporting maps. This modifies the layout legend and saves the .aprx project when save=true."
+    },
+    {
+      "name": "update_text_element",
+      "description": "Update the text content of a named layout text element using arcpy.mp layout elements. Use this to automate titles, dates, subtitles, map numbers, project names, notes, or report labels before export. This modifies the selected layout and saves the .aprx project when save=true."
+    },
+    {
+      "name": "create_fishnet",
+      "description": "Create a rectangular fishnet or grid feature class using ArcPy CreateFishnet from explicit origin coordinates, optional Y-axis orientation, cell width, cell height, row count, column count, label point option, and output geometry type. Use this to generate sampling grids, planning units, analysis zones, index maps, polygon tiles, or polyline grid overlays before spatial join, summarize-within, raster conversion, QA/QC, or map production. Writes out_features inside a PathGuard allowed root; existing outputs require overwrite=true."
+    },
+    {
+      "name": "dissolve_features",
+      "description": "Merge adjacent or overlapping features that share attribute values using ArcPy Dissolve. Use this to generalize boundaries, aggregate parcels, zones, roads, or other features by one or more dissolve fields. Reads in_features and writes a new dissolved output feature class inside PathGuard allowed roots."
+    },
+    {
+      "name": "erase_features",
+      "description": "Remove portions of input features that overlap an erase layer using ArcPy Erase. Use this for exclusion zones, masking restricted areas, or subtracting one geography from another. Reads the input and overlay feature paths and writes a new output feature class without modifying the source datasets."
+    },
+    {
+      "name": "feature_to_point",
+      "description": "Create representative point features from polygons or lines using ArcPy FeatureToPoint. Use this to produce centroids or guaranteed inside points for labeling, joins, sampling, or simplified analysis. Reads in_features and writes a new point feature class to out_features."
+    },
+    {
+      "name": "feature_vertices_to_points",
+      "description": "Convert feature vertices to point features using ArcPy FeatureVerticesToPoints. Use this to extract endpoints, all vertices, midpoints, or dangle points from line or polygon geometry for QA/QC, network checks, and geometry inspection. Reads in_features and creates out_features inside PathGuard allowed roots."
+    },
+    {
+      "name": "frequency_analysis",
+      "description": "Count unique combinations of attribute values using ArcPy Frequency. Use this to profile categorical fields, detect duplicates, summarize classes, or prepare simple frequency tables for QA/QC and reporting. Reads an input table and writes a new output table inside PathGuard allowed roots."
+    },
+    {
+      "name": "generate_near_table",
+      "description": "Create a standalone proximity table between input features and near features using ArcPy GenerateNearTable. Use this to record nearest neighbors, distances, and candidate matches without modifying the source datasets. Reads input and near feature paths and writes a new out_table inside PathGuard allowed roots."
+    },
+    {
+      "name": "identity_features",
+      "description": "Overlay input features with identity features using ArcPy Identity. Use this to transfer polygon or line attributes onto another feature layer while preserving the input geometry where applicable. Reads both input datasets and writes a new output feature class inside PathGuard allowed roots."
+    },
+    {
+      "name": "intersect_features",
+      "description": "Overlay two or more feature layers using ArcPy Intersect and write only the shared geometry to a new output feature class. Use this to find areas, lines, or points common to multiple datasets while preserving selected attributes. Reads all input feature paths and writes out_features inside PathGuard allowed roots."
+    },
+    {
+      "name": "merge_features",
+      "description": "Combine multiple compatible feature classes or layers into one output feature class using ArcPy Merge. Use this to assemble same-schema datasets from multiple sources, tiles, districts, or processing batches. Reads all input feature paths and writes one new output inside PathGuard allowed roots."
+    },
+    {
+      "name": "minimum_bounding_geometry",
+      "description": "Create bounding geometries around input features using ArcPy MinimumBoundingGeometry. Use this to generate convex hulls, envelopes, circles, or other summary shapes for features or groups. Reads in_features and writes a new output feature class with the requested geometry_type and grouping behavior."
+    },
+    {
+      "name": "multipart_to_singlepart",
+      "description": "Split multipart features into singlepart features using ArcPy MultipartToSinglepart. Use this before per-feature editing, counting, topology checks, joins, or analysis that requires one geometry part per row. Reads in_features and creates out_features without modifying the source dataset."
+    },
+    {
+      "name": "near_analysis",
+      "description": "Calculate nearest-neighbor distance from each input feature to nearby features using ArcPy Near. This mutates the input dataset by adding or updating NEAR_FID and NEAR_DIST fields, so confirm=true is required. Use a copied working dataset when exposing this workflow to an LLM or automated agent. [Destructive: requires confirm=true.]"
+    },
+    {
+      "name": "select_by_attribute",
+      "description": "Materialize a SQL attribute query into a new feature class using ArcPy Select. Use this when a stateless MCP workflow needs a saved subset rather than an in-memory layer selection. Reads in_features, applies where_clause, and writes the selected rows to out_features."
+    },
+    {
+      "name": "select_by_location",
+      "description": "Materialize a spatial relationship selection into a new feature class using a MakeFeatureLayer, SelectLayerByLocation, and CopyFeatures pipeline. Use this to persist features that intersect, contain, are within, or are near another dataset. Writes the selected result to out_features and removes the temporary layer."
+    },
+    {
+      "name": "simplify_features",
+      "description": "Simplify polygon or polyline geometry using ArcPy SimplifyPolygon or SimplifyLine after detecting the input shape type. Use this to reduce vertex density for cartography, web export, performance, or scale-appropriate analysis. Writes a simplified output feature class and does not mutate the source features."
+    },
+    {
+      "name": "smooth_features",
+      "description": "Smooth polygon or polyline geometry using ArcPy SmoothPolygon or SmoothLine after detecting the input shape type. Use this for cartographic cleanup where angular boundaries or lines need a more generalized appearance. Writes a new smoothed output feature class without modifying the source dataset."
+    },
+    {
+      "name": "spatial_join",
+      "description": "Join attributes from one feature layer to another based on spatial relationships using ArcPy SpatialJoin. Use this to count, summarize, or transfer nearby, contained, intersecting, or matching feature attributes into a new output feature class. Reads target_features and join_features and writes out_features inside PathGuard roots."
+    },
+    {
+      "name": "statistics_analysis",
+      "description": "Calculate summary statistics for numeric or categorical fields using ArcPy Statistics. Use this to aggregate counts, sums, means, minima, maxima, standard deviations, or grouped statistics before reporting or joining results back to features. Reads an input table and writes a new output table."
+    },
+    {
+      "name": "summarize_within",
+      "description": "Summarize features that fall within polygon areas using ArcPy SummarizeWithin. Use this to count or aggregate points, lines, or polygons by administrative zones, grid cells, parcels, buffers, or service areas. Reads boundary polygons and summary features, then writes a new summarized output feature class."
+    },
+    {
+      "name": "symmetrical_difference",
+      "description": "Create the non-overlapping parts of two feature layers using ArcPy SymmetricalDifference. Use this to compare boundaries, detect areas present in only one of two datasets, or isolate disagreement between two polygon/line sources. Writes a new output feature class and does not modify the inputs."
+    },
+    {
+      "name": "tabulate_intersection",
+      "description": "Cross-tabulate intersections between zone features and class features using ArcPy TabulateIntersection. Use this to quantify how much of each class falls inside each zone, such as land-use area by district or habitat type by planning unit. Writes a standalone output table."
+    },
+    {
+      "name": "union_features",
+      "description": "Overlay two or more polygon feature layers using ArcPy Union and write a new polygon feature class containing all combined areas. Use this to compare zoning, land-use, administrative, or planning layers while retaining attributes from each input. Reads input features and writes out_features inside PathGuard allowed roots."
+    },
+    {
+      "name": "add_layer_to_map",
+      "description": "Add a dataset to a map inside a saved ArcGIS Pro .aprx project using arcpy.mp addDataFromPath. Use this to load feature classes, rasters, tables, or other supported GIS datasets into an existing project map before styling, exporting, or layout automation. Operates on the saved .aprx file, not a live ArcGIS Pro session, and saves the project when save=true."
+    },
+    {
+      "name": "list_layers_in_map",
+      "description": "List layers in a selected map with visibility, group-layer status, and data source information where available. Use this to discover exact Contents-pane layer names before visibility, ordering, symbology, rename, or zoom operations. Reads the saved .aprx project only and does not modify layer state."
+    },
+    {
+      "name": "list_maps",
+      "description": "List map names inside a saved ArcGIS Pro .aprx project using aprx.listMaps. Use this discovery tool before map-scoped operations when the target map name is unknown or when validating project contents. Reads the project file only and does not modify or save it."
+    },
+    {
+      "name": "move_layer_order",
+      "description": "Move a named layer before or after a reference layer in the map drawing order using map.moveLayer. Use this to control cartographic stacking, for example placing boundaries above imagery or analysis results above base layers. This updates the saved .aprx project when save=true."
+    },
+    {
+      "name": "remove_layer_from_map",
+      "description": "Remove a named layer from a map inside a saved ArcGIS Pro .aprx project using map.removeLayer. Use this for controlled map cleanup before export, packaging, or automated project updates. This changes the map contents but does not delete the underlying dataset; confirm=true is required because the project structure is mutated. [Destructive: requires confirm=true.]"
+    },
+    {
+      "name": "rename_layer",
+      "description": "Rename a layer as displayed in the ArcGIS Pro Contents pane by updating lyr.name. Use this to make automated map outputs clearer before export, handoff, or presentation. This renames the map layer only, does not rename the underlying dataset, and saves the .aprx project when save=true."
+    },
+    {
+      "name": "save_project",
+      "description": "Explicitly save a saved ArcGIS Pro .aprx project using aprx.save. Use this after a sequence of map, layer, layout, visibility, camera, or symbology changes when the project must be persisted before export or handoff. Operates on the saved .aprx file and returns the saved project path."
+    },
+    {
+      "name": "set_layer_symbology",
+      "description": "Apply cartographic symbology from a source .lyrx layer file to a named target layer using ArcPy ApplySymbologyFromLayer. Use this to standardize colors, classifications, labels, renderers, and map styling before export or project delivery. Reads the target layer and .lyrx file inside PathGuard allowed roots and saves the .aprx project when save=true."
+    },
+    {
+      "name": "set_layer_visibility",
+      "description": "Show or hide a named layer in a selected ArcGIS Pro map by updating lyr.visible. Use this before layout or map export to control which datasets appear in the final map. This mutates layer visibility in the saved .aprx project when save=true but does not alter the source dataset."
+    },
+    {
+      "name": "zoom_to_layer",
+      "description": "Set the selected map's default camera extent to match a named layer's data extent. Use this before exporting a map view or reopening the .aprx so the map focuses on a study area, boundary, analysis result, or target dataset. Reads the layer data source extent, updates the map defaultCamera, and saves the project when save=true."
+    },
+    {
+      "name": "closest_facility",
+      "description": "Find nearest facility routes for incident points using ArcPy Network Analyst MakeClosestFacilityAnalysisLayer. Use this to match demand or incident locations to hospitals, stations, schools, depots, stores, or other candidate facilities by network travel cost. Requires a Network Analyst license; supports facilities_to_find and writes solved route features to out_features."
+    },
+    {
+      "name": "od_cost_matrix",
+      "description": "Solve origin-destination travel cost lines using ArcPy Network Analyst MakeODCostMatrixAnalysisLayer. Use this to measure travel time or distance between demand points and destinations such as services, jobs, facilities, stores, or transit stops. Requires a Network Analyst license; supports travel_mode and optional cutoff, then writes OD line results to out_features inside PathGuard allowed roots."
+    },
+    {
+      "name": "route_analysis",
+      "description": "Solve the best route through ordered stop points using ArcPy Network Analyst MakeRouteAnalysisLayer. Use this for A-to-B routing, multi-stop field visits, logistics paths, inspection sequences, or travel-time analysis over a configured network dataset. Requires a Network Analyst license; reads stops and writes solved route features to out_features."
+    },
+    {
+      "name": "service_area",
+      "description": "Solve reachable service area polygons around facility points using ArcPy Network Analyst MakeServiceAreaAnalysisLayer. Use this to map accessibility around schools, hospitals, stations, depots, stores, or emergency facilities at one or more travel cutoffs. Requires a Network Analyst license; reads a network_dataset and facilities, then writes solved polygon features to out_features inside PathGuard roots."
+    },
+    {
+      "name": "aspect_analysis",
+      "description": "Derive downslope aspect direction from an elevation raster using ArcPy Spatial Analyst Aspect. Use this for terrain interpretation, solar exposure, ecological modeling, hydrology, and site suitability. Requires a Spatial Analyst license and writes a new aspect raster."
+    },
+    {
+      "name": "clip_raster",
+      "description": "Clip a raster by rectangle, template extent, or template polygon geometry using ArcPy management Clip. Use this to crop imagery, DEMs, or classified rasters to a study area without requiring Spatial Analyst. Reads in_raster and optional template_dataset and writes out_raster inside PathGuard roots."
+    },
+    {
+      "name": "contour_lines",
+      "description": "Create vector elevation isolines from a DEM raster using ArcPy Spatial Analyst Contour. Use this to generate cartographic contours, terrain analysis inputs, or elevation reference lines. Requires a Spatial Analyst license and writes a polyline feature class."
+    },
+    {
+      "name": "extract_by_mask",
+      "description": "Extract raster cells inside a polygon or raster mask using ArcPy Spatial Analyst ExtractByMask. Use this to clip elevation, imagery, land-cover, suitability, or other raster data to a study area before analysis. Requires a Spatial Analyst license; reads in_raster and mask inside PathGuard roots and writes out_raster."
+    },
+    {
+      "name": "fill_sinks",
+      "description": "Fill sinks or depressions in an elevation raster using ArcPy Spatial Analyst Fill. Use this to hydrologically condition DEMs before flow direction, flow accumulation, watershed, or stream network analysis. Requires a Spatial Analyst license; optional z_limit controls maximum sink depth to fill."
+    },
+    {
+      "name": "flow_direction",
+      "description": "Derive a hydrologic flow-direction raster from an elevation or surface raster using ArcPy Spatial Analyst FlowDirection. Use this before flow accumulation, watershed delineation, drainage modeling, or stream extraction. Requires a Spatial Analyst license; writes out_raster and can optionally force edge cells to flow outward."
+    },
+    {
+      "name": "hillshade",
+      "description": "Create shaded relief from an elevation raster using ArcPy Spatial Analyst Hillshade. Use this for terrain visualization, map backdrops, and DEM QA/QC with controlled sun azimuth, altitude, shadow modeling, and z_factor. Requires a Spatial Analyst license."
+    },
+    {
+      "name": "mosaic_to_new_raster",
+      "description": "Merge multiple raster datasets into one new raster using ArcPy MosaicToNewRaster. Use this to combine tiles, scenes, DEM sheets, or image bands into a single dataset. Reads two or more input rasters and writes a named raster into an existing folder or geodatabase."
+    },
+    {
+      "name": "polygon_to_raster",
+      "description": "Convert polygon features to a raster dataset using ArcPy PolygonToRaster. Use this when vector zones, classes, parcels, or planning units need to become raster cells for map algebra, suitability modeling, or raster overlay. Reads polygon features and writes out_raster using value_field, cell_assignment, and cell_size."
+    },
+    {
+      "name": "raster_calculator",
+      "description": "Run Spatial Analyst map algebra over explicitly named raster variables using ArcPy RasterCalculator. Use this for NDVI, suitability models, binary masks, raster normalization, and cell-by-cell formulas. Requires a Spatial Analyst license; expressions may reference only declared variable_names and validated map-algebra syntax."
+    },
+    {
+      "name": "raster_to_polygon",
+      "description": "Convert raster zones or classes to polygon features using ArcPy RasterToPolygon. Use this to vectorize classified rasters, suitability classes, land-cover codes, or cell regions for GIS editing, overlay, and cartographic workflows. Reads in_raster and writes out_features."
+    },
+    {
+      "name": "resample_raster",
+      "description": "Change raster cell size using ArcPy Resample. Use this to align resolution before overlay, modeling, visualization, or export. Reads one input raster and writes out_raster inside PathGuard roots; choose a resampling method appropriate for categorical or continuous data."
+    },
+    {
+      "name": "slope_analysis",
+      "description": "Derive slope from an elevation raster using ArcPy Spatial Analyst Slope. Use this in terrain, hydrology, accessibility, hazard, and site suitability workflows. Requires a Spatial Analyst license; writes a slope raster in degrees or percent rise using z_factor."
+    },
+    {
+      "name": "zonal_statistics",
+      "description": "Calculate one raster statistic per zone and write the result as a raster using ArcPy Spatial Analyst ZonalStatistics. Use this when each zone should receive a MEAN, SUM, MIN, MAX, or similar value from an input value raster. Requires a Spatial Analyst license."
+    },
+    {
+      "name": "zonal_statistics_as_table",
+      "description": "Calculate zonal statistics and write the results to a standalone table using ArcPy Spatial Analyst ZonalStatisticsAsTable. Use this to summarize raster values by districts, parcels, watersheds, grid cells, or other zone datasets. Requires a Spatial Analyst license."
+    },
+    {
+      "name": "directional_distribution",
+      "description": "Create standard deviational ellipse features using ArcPy DirectionalDistribution to summarize spatial orientation, dispersion, and directional trend. Use this for point-pattern analysis, movement corridors, incident spread, market/service-area orientation, or comparison between groups. Supports ellipse_size and optional weight_field; writes a new output feature class without modifying inputs."
+    },
+    {
+      "name": "hotspot_analysis",
+      "description": "Run Getis-Ord Gi* hot and cold spot analysis using ArcPy HotSpots and write a feature class with GiZScore, GiPValue, and Gi_Bin results. Use this to identify statistically significant clusters of high and low values in incidents, socioeconomic indicators, service demand, or environmental measurements. Supports spatial conceptualization, distance method, and optional distance band."
+    },
+    {
+      "name": "kernel_density",
+      "description": "Estimate a continuous density raster from point or polyline features using Spatial Analyst KernelDensity. Use this for hotspot surfaces, incident intensity, service demand, accessibility pressure, crime or event density, and other smoothed spatial concentration maps. Requires a Spatial Analyst license; supports population_field, cell_size, and search_radius and writes out_raster inside PathGuard roots."
+    },
+    {
+      "name": "mean_center",
+      "description": "Calculate the geographic mean center of input features using ArcPy MeanCenter and write the result as a point feature class. Use this to summarize the central tendency of incidents, facilities, parcels, demand points, or grouped spatial observations. Supports optional weight_field and case_field parameters; reads in_features and writes out_features inside PathGuard allowed roots."
+    },
+    {
+      "name": "spatial_autocorrelation",
+      "description": "Calculate Global Moran's I using ArcPy SpatialAutocorrelation and return scalar statistics including Moran's Index, z-score, and p-value. Use this to test whether a numeric attribute is clustered, dispersed, or spatially random before choosing local hotspot, cluster, or spatial modeling workflows. Reads in_features only and does not create or modify datasets."
+    },
+    {
+      "name": "extract_sketch_to_gis",
+      "description": "Sketch-to-GIS pipeline: align a smartphone photo of a hand-drawn sketch onto its printed map layout (ORB+RANSAC homography), extract the requested ink color (HSV segmentation), georeference the vectors using the layout envelope, and append Polygon/Polyline features into an existing GDB feature class. APPENDS rows — requires confirm=true. Worker env needs: pip install opencv-python-headless numpy. [Destructive: requires confirm=true.]"
+    }
+  ]
+}

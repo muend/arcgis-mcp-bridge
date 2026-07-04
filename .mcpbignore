@@ -1,0 +1,15 @@
+.git/
+.github/
+.venv/
+.mypy_cache/
+.pytest_cache/
+.pytest_tmp/
+.ruff_cache/
+.smoke/
+dist/
+build/
+*.egg-info/
+__pycache__/
+tests/
+*.pyc
+uv.lock
