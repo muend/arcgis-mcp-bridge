@@ -246,166 +246,296 @@ _CAT = Category.GEOMETRY
 _SPECS = (
     (
         "intersect_features",
-        "Geometric intersection of 2+ layers (Intersect).",
+        (
+            "Overlay two or more feature layers using ArcPy Intersect and write "
+            "only the shared geometry to a new output feature class. Use this "
+            "to find areas, lines, or points common to multiple datasets while "
+            "preserving selected attributes. Reads all input feature paths and "
+            "writes out_features inside PathGuard allowed roots."
+        ),
         c.IntersectFeaturesInput,
         _intersect,
         False,
     ),
     (
         "union_features",
-        "Geometric union of 2+ polygon layers (Union).",
+        (
+            "Overlay two or more polygon feature layers using ArcPy Union and "
+            "write a new polygon feature class containing all combined areas. "
+            "Use this to compare zoning, land-use, administrative, or planning "
+            "layers while retaining attributes from each input. Reads input "
+            "features and writes out_features inside PathGuard allowed roots."
+        ),
         c.UnionFeaturesInput,
         _union,
         False,
     ),
     (
         "erase_features",
-        "Remove areas overlapping the overlay layer — cookie-cutter (Erase).",
+        (
+            "Remove portions of input features that overlap an erase layer using "
+            "ArcPy Erase. Use this for exclusion zones, masking restricted areas, "
+            "or subtracting one geography from another. Reads the input and "
+            "overlay feature paths and writes a new output feature class without "
+            "modifying the source datasets."
+        ),
         c.EraseFeaturesInput,
         _erase,
         False,
     ),
     (
         "dissolve_features",
-        "Merge geometries sharing attribute values (Dissolve).",
+        (
+            "Merge adjacent or overlapping features that share attribute values "
+            "using ArcPy Dissolve. Use this to generalize boundaries, aggregate "
+            "parcels, zones, roads, or other features by one or more dissolve "
+            "fields. Reads in_features and writes a new dissolved output feature "
+            "class inside PathGuard allowed roots."
+        ),
         c.DissolveFeaturesInput,
         _dissolve,
         False,
     ),
     (
         "merge_features",
-        "Combine same-schema layers into one FC (Merge).",
+        (
+            "Combine multiple compatible feature classes or layers into one output "
+            "feature class using ArcPy Merge. Use this to assemble same-schema "
+            "datasets from multiple sources, tiles, districts, or processing "
+            "batches. Reads all input feature paths and writes one new output "
+            "inside PathGuard allowed roots."
+        ),
         c.MergeFeaturesInput,
         _merge,
         False,
     ),
     (
         "select_by_attribute",
-        "Materialize a SQL attribute selection into a new FC (Select).",
+        (
+            "Materialize a SQL attribute query into a new feature class using "
+            "ArcPy Select. Use this when a stateless MCP workflow needs a saved "
+            "subset rather than an in-memory layer selection. Reads in_features, "
+            "applies where_clause, and writes the selected rows to out_features."
+        ),
         c.SelectByAttributeInput,
         _select_by_attribute,
         False,
     ),
     (
         "select_by_location",
-        "Materialize a spatial-relationship selection into a new FC "
-        "(SelectLayerByLocation pipeline).",
+        (
+            "Materialize a spatial relationship selection into a new feature class "
+            "using a MakeFeatureLayer, SelectLayerByLocation, and CopyFeatures "
+            "pipeline. Use this to persist features that intersect, contain, are "
+            "within, or are near another dataset. Writes the selected result to "
+            "out_features and removes the temporary layer."
+        ),
         c.SelectByLocationInput,
         _select_by_location,
         False,
     ),
     (
         "spatial_join",
-        "Join attributes by spatial relationship (SpatialJoin).",
+        (
+            "Join attributes from one feature layer to another based on spatial "
+            "relationships using ArcPy SpatialJoin. Use this to count, summarize, "
+            "or transfer nearby, contained, intersecting, or matching feature "
+            "attributes into a new output feature class. Reads target_features "
+            "and join_features and writes out_features inside PathGuard roots."
+        ),
         c.SpatialJoinInput,
         _spatial_join,
         False,
     ),
     (
         "near_analysis",
-        "Nearest-neighbor distance per feature; MUTATES input (Near). "
-        "Requires confirm=true.",
+        (
+            "Calculate nearest-neighbor distance from each input feature to nearby "
+            "features using ArcPy Near. This mutates the input dataset by adding "
+            "or updating NEAR_FID and NEAR_DIST fields, so confirm=true is "
+            "required. Use a copied working dataset when exposing this workflow "
+            "to an LLM or automated agent."
+        ),
         c.NearAnalysisInput,
         _near,
         True,
     ),
     (
         "generate_near_table",
-        "N nearest neighbors as a standalone table (GenerateNearTable).",
+        (
+            "Create a standalone proximity table between input features and near "
+            "features using ArcPy GenerateNearTable. Use this to record nearest "
+            "neighbors, distances, and candidate matches without modifying the "
+            "source datasets. Reads input and near feature paths and writes a new "
+            "out_table inside PathGuard allowed roots."
+        ),
         c.GenerateNearTableInput,
         _generate_near_table,
         False,
     ),
     (
         "minimum_bounding_geometry",
-        "Convex hull / envelope / circle per feature or group "
-        "(MinimumBoundingGeometry).",
+        (
+            "Create bounding geometries around input features using ArcPy "
+            "MinimumBoundingGeometry. Use this to generate convex hulls, envelopes, "
+            "circles, or other summary shapes for features or groups. Reads "
+            "in_features and writes a new output feature class with the requested "
+            "geometry_type and grouping behavior."
+        ),
         c.MinimumBoundingGeometryInput,
         _minimum_bounding_geometry,
         False,
     ),
     (
         "feature_to_point",
-        "Polygon/line centroids as points (FeatureToPoint).",
+        (
+            "Create representative point features from polygons or lines using "
+            "ArcPy FeatureToPoint. Use this to produce centroids or guaranteed "
+            "inside points for labeling, joins, sampling, or simplified analysis. "
+            "Reads in_features and writes a new point feature class to out_features."
+        ),
         c.FeatureToPointInput,
         _feature_to_point,
         False,
     ),
     (
         "feature_vertices_to_points",
-        "Extract vertices as points (FeatureVerticesToPoints).",
+        (
+            "Convert feature vertices to point features using ArcPy "
+            "FeatureVerticesToPoints. Use this to extract endpoints, all vertices, "
+            "midpoints, or dangle points from line or polygon geometry for QA/QC, "
+            "network checks, and geometry inspection. Reads in_features and "
+            "creates out_features inside PathGuard allowed roots."
+        ),
         c.FeatureVerticesToPointsInput,
         _feature_vertices_to_points,
         False,
     ),
     (
         "multipart_to_singlepart",
-        "Explode multipart geometries (MultipartToSinglepart).",
+        (
+            "Split multipart features into singlepart features using ArcPy "
+            "MultipartToSinglepart. Use this before per-feature editing, counting, "
+            "topology checks, joins, or analysis that requires one geometry part "
+            "per row. Reads in_features and creates out_features without modifying "
+            "the source dataset."
+        ),
         c.MultipartToSinglepartInput,
         _multipart_to_singlepart,
         False,
     ),
     (
         "simplify_features",
-        "Simplify polygon/line geometry; auto-detects shape type "
-        "(SimplifyPolygon/SimplifyLine).",
+        (
+            "Simplify polygon or polyline geometry using ArcPy SimplifyPolygon or "
+            "SimplifyLine after detecting the input shape type. Use this to reduce "
+            "vertex density for cartography, web export, performance, or scale-"
+            "appropriate analysis. Writes a simplified output feature class and "
+            "does not mutate the source features."
+        ),
         c.SimplifyFeaturesInput,
         _simplify,
         False,
     ),
     (
         "smooth_features",
-        "Smooth polygon/line corners; auto-detects shape type "
-        "(SmoothPolygon/SmoothLine).",
+        (
+            "Smooth polygon or polyline geometry using ArcPy SmoothPolygon or "
+            "SmoothLine after detecting the input shape type. Use this for "
+            "cartographic cleanup where angular boundaries or lines need a more "
+            "generalized appearance. Writes a new smoothed output feature class "
+            "without modifying the source dataset."
+        ),
         c.SmoothFeaturesInput,
         _smooth,
         False,
     ),
     (
         "summarize_within",
-        "Statistics of features falling inside polygons (SummarizeWithin).",
+        (
+            "Summarize features that fall within polygon areas using ArcPy "
+            "SummarizeWithin. Use this to count or aggregate points, lines, or "
+            "polygons by administrative zones, grid cells, parcels, buffers, or "
+            "service areas. Reads boundary polygons and summary features, then "
+            "writes a new summarized output feature class."
+        ),
         c.SummarizeWithinInput,
         _summarize_within,
         False,
     ),
     (
         "frequency_analysis",
-        "Count unique attribute value combinations (Frequency).",
+        (
+            "Count unique combinations of attribute values using ArcPy Frequency. "
+            "Use this to profile categorical fields, detect duplicates, summarize "
+            "classes, or prepare simple frequency tables for QA/QC and reporting. "
+            "Reads an input table and writes a new output table inside PathGuard "
+            "allowed roots."
+        ),
         c.FrequencyAnalysisInput,
         _frequency,
         False,
     ),
     (
         "statistics_analysis",
-        "SUM/MEAN/MIN/MAX/STD summary table (Statistics).",
+        (
+            "Calculate summary statistics for numeric or categorical fields using "
+            "ArcPy Statistics. Use this to aggregate counts, sums, means, minima, "
+            "maxima, standard deviations, or grouped statistics before reporting "
+            "or joining results back to features. Reads an input table and writes "
+            "a new output table."
+        ),
         c.StatisticsAnalysisInput,
         _statistics,
         False,
     ),
     (
         "tabulate_intersection",
-        "Cross-tabulate intersection areas of two layers (TabulateIntersection).",
+        (
+            "Cross-tabulate intersections between zone features and class features "
+            "using ArcPy TabulateIntersection. Use this to quantify how much of "
+            "each class falls inside each zone, such as land-use area by district "
+            "or habitat type by planning unit. Writes a standalone output table."
+        ),
         c.TabulateIntersectionInput,
         _tabulate_intersection,
         False,
     ),
     (
         "identity_features",
-        "Overlay keeping source geometry (Identity).",
+        (
+            "Overlay input features with identity features using ArcPy Identity. "
+            "Use this to transfer polygon or line attributes onto another feature "
+            "layer while preserving the input geometry where applicable. Reads "
+            "both input datasets and writes a new output feature class inside "
+            "PathGuard allowed roots."
+        ),
         c.IdentityFeaturesInput,
         _identity,
         False,
     ),
     (
         "symmetrical_difference",
-        "Non-overlapping parts of two layers (SymDiff).",
+        (
+            "Create the non-overlapping parts of two feature layers using ArcPy "
+            "SymmetricalDifference. Use this to compare boundaries, detect areas "
+            "present in only one of two datasets, or isolate disagreement between "
+            "two polygon/line sources. Writes a new output feature class and does "
+            "not modify the inputs."
+        ),
         c.SymmetricalDifferenceInput,
         _sym_diff,
         False,
     ),
     (
         "create_fishnet",
-        "Regular grid of cells (CreateFishnet).",
+        (
+            "Create a regular rectangular grid or fishnet feature class using "
+            "ArcPy CreateFishnet. Use this to build sampling grids, analysis "
+            "cells, index maps, planning units, or raster-like vector zones from "
+            "an origin, cell size, row/column count, and geometry type. Writes a "
+            "new grid dataset inside a PathGuard allowed root."
+        ),
         c.CreateFishnetInput,
         _create_fishnet,
         False,

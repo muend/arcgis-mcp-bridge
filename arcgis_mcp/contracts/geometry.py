@@ -11,11 +11,31 @@ from .data_mgmt import InOutInput
 
 
 class MultiInputOverlay(ToolInput):
-    """Shared base: N input layers -> one output (Intersect, Union, Merge)."""
+    """Shared base for overlay tools that read multiple inputs and write one output."""
 
-    in_features: List[str] = Field(..., min_length=2, max_length=20)
-    out_features: str
-    overwrite: bool = False
+    in_features: List[str] = Field(
+        ...,
+        min_length=2,
+        max_length=20,
+        description=(
+            "Absolute paths to two or more existing input feature classes or "
+            "layers. Every path must be inside a configured PathGuard allowed root."
+        ),
+    )
+    out_features: str = Field(
+        ...,
+        description=(
+            "Absolute output feature class path to create from the overlay result. "
+            "The path must be inside a configured PathGuard allowed root; existing "
+            "outputs require overwrite=true."
+        ),
+    )
+    overwrite: bool = Field(
+        default=False,
+        description=(
+            "Set true only when replacing an existing output feature class is intended."
+        ),
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_features": "read_list",
         "out_features": "write",
@@ -23,12 +43,36 @@ class MultiInputOverlay(ToolInput):
 
 
 class TwoLayerOverlay(ToolInput):
-    """Shared base: primary + secondary layer -> output (Erase, Identity...)."""
+    """Shared base for tools that overlay one primary layer with one secondary layer."""
 
-    in_features: str
-    overlay_features: str
-    out_features: str
-    overwrite: bool = False
+    in_features: str = Field(
+        ...,
+        description=(
+            "Absolute path to the primary input feature class or layer. The path "
+            "must be inside a configured PathGuard allowed root."
+        ),
+    )
+    overlay_features: str = Field(
+        ...,
+        description=(
+            "Absolute path to the secondary overlay feature class or layer. The "
+            "path must be inside a configured PathGuard allowed root."
+        ),
+    )
+    out_features: str = Field(
+        ...,
+        description=(
+            "Absolute output feature class path to create. The path must be inside "
+            "a configured PathGuard allowed root; existing outputs require "
+            "overwrite=true."
+        ),
+    )
+    overwrite: bool = Field(
+        default=False,
+        description=(
+            "Set true only when replacing an existing output feature class is intended."
+        ),
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_features": "read",
         "overlay_features": "read",
@@ -37,32 +81,63 @@ class TwoLayerOverlay(ToolInput):
 
 
 class IntersectFeaturesInput(MultiInputOverlay):
-    join_attributes: Literal["ALL", "NO_FID", "ONLY_FID"] = "ALL"
+    """Input contract for creating the shared geometry of multiple feature layers."""
+
+    join_attributes: Literal["ALL", "NO_FID", "ONLY_FID"] = Field(
+        default="ALL",
+        description=(
+            "Attribute transfer mode for ArcPy Intersect. ALL keeps all input "
+            "attributes, NO_FID drops feature ID fields, and ONLY_FID keeps only "
+            "feature ID fields."
+        ),
+    )
 
 
 class UnionFeaturesInput(MultiInputOverlay):
-    pass
+    """Input contract for polygon union overlay."""
 
 
 class EraseFeaturesInput(TwoLayerOverlay):
-    pass
+    """Input contract for subtracting overlay features from primary features."""
 
 
 class DissolveFeaturesInput(InOutInput):
-    dissolve_fields: List[str] = Field(default_factory=list, max_length=20)
-    multi_part: bool = True
+    """Input contract for dissolving features by shared attribute values."""
+
+    dissolve_fields: List[str] = Field(
+        default_factory=list,
+        max_length=20,
+        description=(
+            "Optional field names used to group features before dissolving. Use an "
+            "empty list to dissolve all input features into one multipart or "
+            "singlepart output."
+        ),
+    )
+    multi_part: bool = Field(
+        default=True,
+        description=(
+            "When true, allow multipart output features. When false, force "
+            "singlepart output where ArcPy supports it."
+        ),
+    )
 
 
 class MergeFeaturesInput(MultiInputOverlay):
-    pass
+    """Input contract for merging multiple compatible feature layers."""
 
 
 class SelectByAttributeInput(InOutInput):
+    """Input contract for materializing a SQL attribute selection."""
+
     where_clause: str = Field(
         ...,
         min_length=1,
         max_length=4000,
-        description='SQL expression, e.g. "POP > 1000".',
+        description=(
+            'SQL expression used to select rows, for example "POP > 1000". '
+            "The expression is passed to ArcPy Select and should match the input "
+            "workspace SQL dialect."
+        ),
     )
 
 
@@ -81,15 +156,58 @@ SpatialRelationship = Literal[
 
 
 class SelectByLocationInput(ToolInput):
-    in_features: str
-    select_features: str
-    out_features: str
-    relationship: SpatialRelationship = "INTERSECT"
-    search_distance: Optional[str] = Field(
-        default=None, description="e.g. '500 Meters' (WITHIN_A_DISTANCE only)."
+    """Input contract for materializing a spatial relationship selection."""
+
+    in_features: str = Field(
+        ...,
+        description=(
+            "Absolute path to the input feature class or layer from which features "
+            "will be selected. The path must be inside a configured PathGuard "
+            "allowed root."
+        ),
     )
-    invert: bool = Field(default=False, description="True = NOT relationship.")
-    overwrite: bool = False
+    select_features: str = Field(
+        ...,
+        description=(
+            "Absolute path to the feature class or layer used as the spatial "
+            "selector. The path must be inside a configured PathGuard allowed root."
+        ),
+    )
+    out_features: str = Field(
+        ...,
+        description=(
+            "Absolute output feature class path containing the selected features. "
+            "Existing outputs require overwrite=true."
+        ),
+    )
+    relationship: SpatialRelationship = Field(
+        default="INTERSECT",
+        description=(
+            "Spatial relationship used for the selection, such as INTERSECT, "
+            "WITHIN, CONTAINS, or WITHIN_A_DISTANCE."
+        ),
+    )
+    search_distance: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional search distance such as '500 Meters'. Primarily used with "
+            "WITHIN_A_DISTANCE; leave None for relationships that do not require "
+            "a distance."
+        ),
+    )
+    invert: bool = Field(
+        default=False,
+        description=(
+            "When true, select features that do not satisfy the requested spatial "
+            "relationship."
+        ),
+    )
+    overwrite: bool = Field(
+        default=False,
+        description=(
+            "Set true only when replacing an existing output feature class is intended."
+        ),
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_features": "read",
         "select_features": "read",
@@ -98,12 +216,52 @@ class SelectByLocationInput(ToolInput):
 
 
 class SpatialJoinInput(ToolInput):
-    target_features: str
-    join_features: str
-    out_features: str
-    join_operation: Literal["JOIN_ONE_TO_ONE", "JOIN_ONE_TO_MANY"] = "JOIN_ONE_TO_ONE"
-    match_option: SpatialRelationship = "INTERSECT"
-    overwrite: bool = False
+    """Input contract for joining attributes by spatial relationship."""
+
+    target_features: str = Field(
+        ...,
+        description=(
+            "Absolute path to the target feature class or layer that will receive "
+            "joined attributes. The path must be inside a configured PathGuard "
+            "allowed root."
+        ),
+    )
+    join_features: str = Field(
+        ...,
+        description=(
+            "Absolute path to the feature class or layer whose attributes will be "
+            "joined to the target features. The path must be inside a configured "
+            "PathGuard allowed root."
+        ),
+    )
+    out_features: str = Field(
+        ...,
+        description=(
+            "Absolute output feature class path to create with the spatial join "
+            "result. Existing outputs require overwrite=true."
+        ),
+    )
+    join_operation: Literal["JOIN_ONE_TO_ONE", "JOIN_ONE_TO_MANY"] = Field(
+        default="JOIN_ONE_TO_ONE",
+        description=(
+            "Join cardinality. JOIN_ONE_TO_ONE aggregates matching join features "
+            "onto each target feature; JOIN_ONE_TO_MANY creates one output row per "
+            "target/join match."
+        ),
+    )
+    match_option: SpatialRelationship = Field(
+        default="INTERSECT",
+        description=(
+            "Spatial match rule used to relate target and join features, such as "
+            "INTERSECT, WITHIN, CONTAINS, or WITHIN_A_DISTANCE."
+        ),
+    )
+    overwrite: bool = Field(
+        default=False,
+        description=(
+            "Set true only when replacing an existing output feature class is intended."
+        ),
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "target_features": "read",
         "join_features": "read",
@@ -112,13 +270,36 @@ class SpatialJoinInput(ToolInput):
 
 
 class NearAnalysisInput(ToolInput):
-    in_features: str = Field(..., description="MODIFIED in place: NEAR_* fields added.")
-    near_features: str
+    """Input contract for ArcPy Near, which mutates the input dataset."""
+
+    in_features: str = Field(
+        ...,
+        description=(
+            "Absolute path to the input feature class that will be modified in "
+            "place. ArcPy Near adds or updates NEAR_FID and NEAR_DIST fields, so "
+            "use a copied working dataset when possible."
+        ),
+    )
+    near_features: str = Field(
+        ...,
+        description=(
+            "Absolute path to the feature class used to find nearest features. "
+            "The path must be inside a configured PathGuard allowed root."
+        ),
+    )
     search_radius: Optional[str] = Field(
-        default=None, description="e.g. '1 Kilometers'"
+        default=None,
+        description=(
+            "Optional maximum search radius, for example '1 Kilometers'. Use None "
+            "to let ArcPy search for the nearest feature without a radius limit."
+        ),
     )
     confirm: bool = Field(
-        default=False, description="Must be true: mutates the input dataset."
+        default=False,
+        description=(
+            "Must be true. near_analysis mutates the input dataset by adding or "
+            "updating NEAR_* fields."
+        ),
     )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_features": "read",
@@ -127,12 +308,49 @@ class NearAnalysisInput(ToolInput):
 
 
 class GenerateNearTableInput(ToolInput):
-    in_features: str
-    near_features: str
-    out_table: str
-    closest_count: int = Field(default=1, ge=1, le=100)
-    search_radius: Optional[str] = None
-    overwrite: bool = False
+    """Input contract for writing nearest-neighbor relationships to a table."""
+
+    in_features: str = Field(
+        ...,
+        description=(
+            "Absolute path to the input feature class whose nearby features will "
+            "be measured. The path must be inside a configured PathGuard allowed root."
+        ),
+    )
+    near_features: str = Field(
+        ...,
+        description=(
+            "Absolute path to the feature class searched for near candidates. The "
+            "path must be inside a configured PathGuard allowed root."
+        ),
+    )
+    out_table: str = Field(
+        ...,
+        description=(
+            "Absolute output table path to create with near-feature relationships "
+            "and distances. Existing outputs require overwrite=true."
+        ),
+    )
+    closest_count: int = Field(
+        default=1,
+        ge=1,
+        le=100,
+        description=(
+            "Maximum number of nearest candidates to write per input feature. "
+            "Use 1 for nearest-only workflows."
+        ),
+    )
+    search_radius: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional maximum search radius, for example '500 Meters'. Use None "
+            "to allow ArcPy to search without a radius limit."
+        ),
+    )
+    overwrite: bool = Field(
+        default=False,
+        description="Set true only when replacing an existing output table is intended.",
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_features": "read",
         "near_features": "read",
@@ -141,48 +359,136 @@ class GenerateNearTableInput(ToolInput):
 
 
 class MinimumBoundingGeometryInput(InOutInput):
+    """Input contract for creating bounding geometry around features."""
+
     geometry_type: Literal[
         "RECTANGLE_BY_AREA",
         "RECTANGLE_BY_WIDTH",
         "CONVEX_HULL",
         "CIRCLE",
         "ENVELOPE",
-    ] = "CONVEX_HULL"
-    group_option: Literal["NONE", "ALL"] = "NONE"
+    ] = Field(
+        default="CONVEX_HULL",
+        description=(
+            "Bounding geometry type to create, such as CONVEX_HULL, ENVELOPE, "
+            "CIRCLE, RECTANGLE_BY_AREA, or RECTANGLE_BY_WIDTH."
+        ),
+    )
+    group_option: Literal["NONE", "ALL"] = Field(
+        default="NONE",
+        description=(
+            "Grouping behavior for bounding geometry creation. NONE creates "
+            "bounding geometry per feature; ALL creates one geometry for all inputs."
+        ),
+    )
 
 
 class FeatureToPointInput(InOutInput):
-    point_location: Literal["CENTROID", "INSIDE"] = "CENTROID"
+    """Input contract for converting features to representative points."""
+
+    point_location: Literal["CENTROID", "INSIDE"] = Field(
+        default="CENTROID",
+        description=(
+            "Point placement method. CENTROID uses the geometric centroid; INSIDE "
+            "places the point inside the input feature when possible."
+        ),
+    )
 
 
 class FeatureVerticesToPointsInput(InOutInput):
-    point_location: Literal["ALL", "MID", "START", "END", "BOTH_ENDS"] = "ALL"
+    """Input contract for extracting vertices from features as points."""
+
+    point_location: Literal["ALL", "MID", "START", "END", "BOTH_ENDS"] = Field(
+        default="ALL",
+        description=(
+            "Which vertices to extract as points: ALL vertices, MID points, START "
+            "vertices, END vertices, or BOTH_ENDS for line endpoints."
+        ),
+    )
 
 
 class MultipartToSinglepartInput(InOutInput):
-    pass
+    """Input contract for splitting multipart features into singlepart features."""
 
 
 class SimplifyFeaturesInput(InOutInput):
-    algorithm: Literal["POINT_REMOVE", "BEND_SIMPLIFY", "WEIGHTED_AREA"] = (
-        "POINT_REMOVE"
+    """Input contract for simplifying polygon or polyline geometry."""
+
+    algorithm: Literal["POINT_REMOVE", "BEND_SIMPLIFY", "WEIGHTED_AREA"] = Field(
+        default="POINT_REMOVE",
+        description=(
+            "Simplification algorithm passed to ArcPy. POINT_REMOVE is general "
+            "purpose, BEND_SIMPLIFY preserves major bends, and WEIGHTED_AREA is "
+            "commonly used for polygon simplification."
+        ),
     )
-    tolerance: str = Field(..., description="e.g. '10 Meters'")
+    tolerance: str = Field(
+        ...,
+        description=(
+            "Simplification tolerance with units, for example '10 Meters'. Larger "
+            "values remove more detail."
+        ),
+    )
 
 
 class SmoothFeaturesInput(InOutInput):
-    algorithm: Literal["PAEK", "BEZIER_INTERPOLATION"] = "PAEK"
+    """Input contract for smoothing polygon or polyline geometry."""
+
+    algorithm: Literal["PAEK", "BEZIER_INTERPOLATION"] = Field(
+        default="PAEK",
+        description=(
+            "Smoothing algorithm passed to ArcPy. PAEK uses a tolerance distance; "
+            "BEZIER_INTERPOLATION creates smoother curves without a tolerance in "
+            "some ArcPy workflows."
+        ),
+    )
     tolerance: str = Field(
-        ..., description="PAEK smoothing tolerance, e.g. '100 Meters'"
+        ...,
+        description=(
+            "PAEK smoothing tolerance with units, for example '100 Meters'. "
+            "Required by the current worker implementation."
+        ),
     )
 
 
 class SummarizeWithinInput(ToolInput):
-    in_polygons: str
-    in_sum_features: str
-    out_features: str
-    keep_all_polygons: bool = True
-    overwrite: bool = False
+    """Input contract for summarizing features inside polygon areas."""
+
+    in_polygons: str = Field(
+        ...,
+        description=(
+            "Absolute path to polygon features that define summary areas, such as "
+            "districts, parcels, buffers, or grid cells. The path must be inside "
+            "a configured PathGuard allowed root."
+        ),
+    )
+    in_sum_features: str = Field(
+        ...,
+        description=(
+            "Absolute path to point, line, or polygon features to summarize within "
+            "each polygon. The path must be inside a configured PathGuard allowed root."
+        ),
+    )
+    out_features: str = Field(
+        ...,
+        description=(
+            "Absolute output feature class path to create with summary attributes. "
+            "Existing outputs require overwrite=true."
+        ),
+    )
+    keep_all_polygons: bool = Field(
+        default=True,
+        description=(
+            "When true, keep all input polygons even if no summary features fall "
+            "inside them. When false, keep only polygons with intersecting summaries."
+        ),
+    )
+    overwrite: bool = Field(
+        default=False,
+        description=(
+            "Set true only when replacing an existing output feature class is intended."
+        ),
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_polygons": "read",
         "in_sum_features": "read",
@@ -191,10 +497,35 @@ class SummarizeWithinInput(ToolInput):
 
 
 class FrequencyAnalysisInput(ToolInput):
-    in_table: str
-    out_table: str
-    frequency_fields: List[str] = Field(..., min_length=1, max_length=20)
-    overwrite: bool = False
+    """Input contract for counting unique attribute value combinations."""
+
+    in_table: str = Field(
+        ...,
+        description=(
+            "Absolute path to the input table or feature class whose attribute "
+            "frequencies will be counted. The path must be inside a configured "
+            "PathGuard allowed root."
+        ),
+    )
+    out_table: str = Field(
+        ...,
+        description=(
+            "Absolute output table path to create with frequency counts. Existing "
+            "outputs require overwrite=true."
+        ),
+    )
+    frequency_fields: List[str] = Field(
+        ...,
+        min_length=1,
+        max_length=20,
+        description=(
+            "Field names used to define unique combinations for frequency counts."
+        ),
+    )
+    overwrite: bool = Field(
+        default=False,
+        description="Set true only when replacing an existing output table is intended.",
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_table": "read",
         "out_table": "write",
@@ -218,13 +549,43 @@ StatType = Literal[
 
 
 class StatisticsAnalysisInput(ToolInput):
-    in_table: str
-    out_table: str
-    statistics_fields: List[Tuple[str, StatType]] = Field(
-        ..., min_length=1, description="[[field, SUM|MEAN|...], ...]"
+    """Input contract for writing summary statistics to a table."""
+
+    in_table: str = Field(
+        ...,
+        description=(
+            "Absolute path to the input table or feature class whose fields will "
+            "be summarized. The path must be inside a configured PathGuard allowed root."
+        ),
     )
-    case_field: Optional[str] = None
-    overwrite: bool = False
+    out_table: str = Field(
+        ...,
+        description=(
+            "Absolute output table path to create with summary statistics. "
+            "Existing outputs require overwrite=true."
+        ),
+    )
+    statistics_fields: List[Tuple[str, StatType]] = Field(
+        ...,
+        min_length=1,
+        description=(
+            "List of [field_name, statistic_type] pairs, such as "
+            "[['POP', 'SUM'], ['AREA', 'MEAN']]. Statistic type may be SUM, "
+            "MEAN, MIN, MAX, STD, COUNT, FIRST, LAST, RANGE, MEDIAN, VARIANCE, "
+            "or UNIQUE."
+        ),
+    )
+    case_field: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional field used to group statistics. Use None to calculate one "
+            "summary row for all input records."
+        ),
+    )
+    overwrite: bool = Field(
+        default=False,
+        description="Set true only when replacing an existing output table is intended.",
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_table": "read",
         "out_table": "write",
@@ -232,11 +593,41 @@ class StatisticsAnalysisInput(ToolInput):
 
 
 class TabulateIntersectionInput(ToolInput):
-    in_zone_features: str
-    zone_fields: List[str] = Field(..., min_length=1)
-    in_class_features: str
-    out_table: str
-    overwrite: bool = False
+    """Input contract for cross-tabulating class features inside zones."""
+
+    in_zone_features: str = Field(
+        ...,
+        description=(
+            "Absolute path to polygon zone features, such as districts, parcels, "
+            "or planning units. The path must be inside a configured PathGuard "
+            "allowed root."
+        ),
+    )
+    zone_fields: List[str] = Field(
+        ...,
+        min_length=1,
+        description=(
+            "One or more zone identifier fields used to group intersection results."
+        ),
+    )
+    in_class_features: str = Field(
+        ...,
+        description=(
+            "Absolute path to class features whose overlap with each zone will be "
+            "tabulated. The path must be inside a configured PathGuard allowed root."
+        ),
+    )
+    out_table: str = Field(
+        ...,
+        description=(
+            "Absolute output table path to create with tabulated intersection "
+            "results. Existing outputs require overwrite=true."
+        ),
+    )
+    overwrite: bool = Field(
+        default=False,
+        description="Set true only when replacing an existing output table is intended.",
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_zone_features": "read",
         "in_class_features": "read",
@@ -245,25 +636,79 @@ class TabulateIntersectionInput(ToolInput):
 
 
 class IdentityFeaturesInput(TwoLayerOverlay):
-    pass
+    """Input contract for identity overlay analysis."""
 
 
 class SymmetricalDifferenceInput(TwoLayerOverlay):
-    pass
+    """Input contract for extracting non-overlapping parts of two feature layers."""
 
 
 class CreateFishnetInput(ToolInput):
-    out_features: str
-    origin_x: float
-    origin_y: float
-    y_axis_y: Optional[float] = Field(
-        default=None, description="Y of the orientation point; default origin_y+10."
+    """Input contract for creating a rectangular fishnet/grid feature class."""
+
+    out_features: str = Field(
+        ...,
+        description=(
+            "Absolute output feature class path for the fishnet grid. The path "
+            "must be inside a configured PathGuard allowed root; existing outputs "
+            "require overwrite=true."
+        ),
     )
-    cell_width: float = Field(..., gt=0)
-    cell_height: float = Field(..., gt=0)
-    rows: int = Field(..., ge=1, le=10000)
-    columns: int = Field(..., ge=1, le=10000)
-    geometry_type: Literal["POLYLINE", "POLYGON"] = "POLYGON"
-    create_label_points: bool = False
-    overwrite: bool = False
+    origin_x: float = Field(
+        ...,
+        description="X coordinate of the fishnet origin point.",
+    )
+    origin_y: float = Field(
+        ...,
+        description="Y coordinate of the fishnet origin point.",
+    )
+    y_axis_y: Optional[float] = Field(
+        default=None,
+        description=(
+            "Y coordinate of the orientation point used to define the fishnet "
+            "Y-axis direction. Defaults to origin_y + 10 when omitted."
+        ),
+    )
+    cell_width: float = Field(
+        ...,
+        gt=0,
+        description="Width of each fishnet cell in the output coordinate units.",
+    )
+    cell_height: float = Field(
+        ...,
+        gt=0,
+        description="Height of each fishnet cell in the output coordinate units.",
+    )
+    rows: int = Field(
+        ...,
+        ge=1,
+        le=10000,
+        description="Number of fishnet rows to create.",
+    )
+    columns: int = Field(
+        ...,
+        ge=1,
+        le=10000,
+        description="Number of fishnet columns to create.",
+    )
+    geometry_type: Literal["POLYLINE", "POLYGON"] = Field(
+        default="POLYGON",
+        description=(
+            "Output grid geometry type. POLYGON creates cells as polygons; "
+            "POLYLINE creates grid lines."
+        ),
+    )
+    create_label_points: bool = Field(
+        default=False,
+        description=(
+            "When true, ask ArcPy to create label points for fishnet cells where "
+            "supported by the geoprocessing tool."
+        ),
+    )
+    overwrite: bool = Field(
+        default=False,
+        description=(
+            "Set true only when replacing an existing output fishnet is intended."
+        ),
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {"out_features": "write"}

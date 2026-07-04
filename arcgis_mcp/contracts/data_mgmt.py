@@ -15,18 +15,46 @@ EsriFieldType = Literal[
 
 
 class DatasetInput(ToolInput):
-    """Shared base: tools reading one existing dataset/table."""
+    """Shared base for tools that read one existing GIS dataset or table."""
 
-    dataset: str = Field(..., min_length=1, description="Absolute dataset path.")
+    dataset: str = Field(
+        ...,
+        min_length=1,
+        description=(
+            "Absolute path to an existing feature class, table, raster, or "
+            "geodatabase item. The path must be inside a configured PathGuard "
+            "allowed root."
+        ),
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {"dataset": "read"}
 
 
 class InOutInput(ToolInput):
-    """Shared base: one input dataset, one output dataset."""
+    """Shared base for tools that read one dataset and create one output."""
 
-    in_features: str = Field(..., min_length=1)
-    out_features: str = Field(..., min_length=1)
-    overwrite: bool = False
+    in_features: str = Field(
+        ...,
+        min_length=1,
+        description=(
+            "Absolute path to the existing input feature class, layer, or table. "
+            "The path must be inside a configured PathGuard allowed root."
+        ),
+    )
+    out_features: str = Field(
+        ...,
+        min_length=1,
+        description=(
+            "Absolute output dataset path to create. The path must be inside a "
+            "configured PathGuard allowed root; existing outputs require "
+            "overwrite=true."
+        ),
+    )
+    overwrite: bool = Field(
+        default=False,
+        description=(
+            "Set true only when replacing an existing output dataset is intended."
+        ),
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_features": "read",
         "out_features": "write",
@@ -34,45 +62,133 @@ class InOutInput(ToolInput):
 
 
 class CreateFeatureClassInput(ToolInput):
-    out_gdb: str = Field(..., description="Existing .gdb to create the FC in.")
-    name: str = Field(..., pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=160)
-    geometry_type: EsriGeometry = "POLYGON"
+    """Create an empty feature class inside an existing file geodatabase."""
+
+    out_gdb: str = Field(
+        ...,
+        description=(
+            "Absolute path to an existing file geodatabase where the new feature "
+            "class will be created. The geodatabase must be inside a configured "
+            "PathGuard allowed root."
+        ),
+    )
+    name: str = Field(
+        ...,
+        pattern=r"^[A-Za-z_][A-Za-z0-9_]*$",
+        max_length=160,
+        description=(
+            "Name of the new feature class, without a path. Use a valid ArcGIS "
+            "dataset name beginning with a letter or underscore."
+        ),
+    )
+    geometry_type: EsriGeometry = Field(
+        default="POLYGON",
+        description=(
+            "Geometry type for the new feature class: POINT, MULTIPOINT, "
+            "POLYLINE, POLYGON, or MULTIPATCH."
+        ),
+    )
     wkid: Optional[int] = Field(
         default=None,
         ge=1024,
         le=32767 + 200000,
-        description="Spatial reference WKID, e.g. 4326. None = unknown CRS.",
+        description=(
+            "Optional spatial reference WKID, for example 4326 for WGS 84. "
+            "Use None to create the feature class with an unknown coordinate system."
+        ),
     )
-    overwrite: bool = False
+    overwrite: bool = Field(
+        default=False,
+        description=(
+            "Set true only when replacing an existing feature class with the same "
+            "name is intended."
+        ),
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {"out_gdb": "read"}
 
 
 class DeleteDatasetInput(DatasetInput):
+    """Delete an existing dataset; irreversible and confirmation-gated."""
+
     confirm: bool = Field(
-        default=False, description="Must be true: deletion is irreversible."
+        default=False,
+        description=(
+            "Must be true. Deleting a dataset is irreversible and removes the "
+            "target feature class, table, raster, or geodatabase item."
+        ),
     )
 
 
 class CopyFeaturesInput(InOutInput):
-    pass
+    """Copy a feature class or layer into a new output feature class."""
 
 
 class RenameDatasetInput(DatasetInput):
-    new_name: str = Field(..., pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=160)
+    """Rename an existing dataset within its current workspace."""
+
+    new_name: str = Field(
+        ...,
+        pattern=r"^[A-Za-z_][A-Za-z0-9_]*$",
+        max_length=160,
+        description=(
+            "New dataset name only, not a full path. Use a valid ArcGIS name "
+            "beginning with a letter or underscore."
+        ),
+    )
 
 
 class AddFieldInput(DatasetInput):
-    field_name: str = Field(..., pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=64)
-    field_type: EsriFieldType = "TEXT"
-    length: Optional[int] = Field(
-        default=None, ge=1, le=2147483647, description="TEXT length; ignored otherwise."
+    """Add one attribute field to an existing table or feature class."""
+
+    field_name: str = Field(
+        ...,
+        pattern=r"^[A-Za-z_][A-Za-z0-9_]*$",
+        max_length=64,
+        description=(
+            "Name of the field to add. Use a valid ArcGIS field name beginning "
+            "with a letter or underscore."
+        ),
     )
-    alias: Optional[str] = None
+    field_type: EsriFieldType = Field(
+        default="TEXT",
+        description=(
+            "ArcGIS field type to create, such as TEXT, LONG, DOUBLE, DATE, "
+            "GUID, or BLOB."
+        ),
+    )
+    length: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=2147483647,
+        description=(
+            "Optional text field length. Used for TEXT fields and ignored by "
+            "most numeric, date, GUID, and BLOB field types."
+        ),
+    )
+    alias: Optional[str] = Field(
+        default=None,
+        description="Optional human-readable field alias shown in ArcGIS.",
+    )
 
 
 class DeleteFieldInput(DatasetInput):
-    fields: List[str] = Field(..., min_length=1)
-    confirm: bool = Field(default=False, description="Must be true: drops data.")
+    """Delete one or more fields from an existing table or feature class."""
+
+    fields: List[str] = Field(
+        ...,
+        min_length=1,
+        description=(
+            "List of field names to delete from the dataset. System-required "
+            "fields cannot be deleted by ArcGIS."
+        ),
+    )
+    confirm: bool = Field(
+        default=False,
+        description=(
+            "Must be true. Dropping fields permanently removes attribute data "
+            "from the input dataset."
+        ),
+    )
 
 
 class CalculateFieldInput(DatasetInput):
@@ -87,9 +203,33 @@ class CalculateFieldInput(DatasetInput):
     dispatcher's destructive-tool gate (Layer B, trust no parent).
     """
 
-    field_name: str = Field(..., min_length=1, max_length=64)
-    expression: str = Field(..., min_length=1, max_length=4000)
-    expression_type: Literal["PYTHON3", "ARCADE", "SQL"] = "ARCADE"
+    field_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=64,
+        description=(
+            "Name of the existing field whose values will be calculated. "
+            "The field must already exist in the input dataset."
+        ),
+    )
+    expression: str = Field(
+        ...,
+        min_length=1,
+        max_length=4000,
+        description=(
+            "Calculation expression passed to ArcPy CalculateField. Prefer "
+            "ARCADE for LLM-facing workflows because it is sandboxed compared "
+            "with PYTHON3."
+        ),
+    )
+    expression_type: Literal["PYTHON3", "ARCADE", "SQL"] = Field(
+        default="ARCADE",
+        description=(
+            "Expression language for the calculation. ARCADE is the default "
+            "safer option. PYTHON3 executes Python code in the worker and "
+            "requires confirm=true."
+        ),
+    )
     confirm: bool = Field(
         default=False,
         description=(
@@ -111,45 +251,115 @@ class CalculateFieldInput(DatasetInput):
 
 
 class FieldDef(BaseModel):
-    """One field for the batch AddFields call."""
+    """One field definition for the batch AddFields call."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
-    name: str = Field(..., pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=64)
-    type: EsriFieldType = "TEXT"
-    length: Optional[int] = Field(default=None, ge=1)
-    alias: Optional[str] = None
+
+    name: str = Field(
+        ...,
+        pattern=r"^[A-Za-z_][A-Za-z0-9_]*$",
+        max_length=64,
+        description=(
+            "Name of the field to add. Use a valid ArcGIS field name beginning "
+            "with a letter or underscore."
+        ),
+    )
+    type: EsriFieldType = Field(
+        default="TEXT",
+        description="ArcGIS field type to create, such as TEXT, LONG, DOUBLE, or DATE.",
+    )
+    length: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description=(
+            "Optional text field length. Primarily used when type is TEXT."
+        ),
+    )
+    alias: Optional[str] = Field(
+        default=None,
+        description="Optional human-readable field alias shown in ArcGIS.",
+    )
 
 
 class AddFieldsBatchInput(DatasetInput):
-    fields: List[FieldDef] = Field(..., min_length=1, max_length=100)
+    """Add multiple fields to an existing table or feature class."""
+
+    fields: List[FieldDef] = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description=(
+            "Field definitions to add in one ArcPy AddFields operation. Each "
+            "definition includes a name, type, optional alias, and optional length."
+        ),
+    )
 
 
 class GetFieldInfoInput(DatasetInput):
-    pass
+    """List field names, types, lengths, aliases, and nullable status."""
 
 
 class GetFeatureCountInput(DatasetInput):
-    pass
+    """Return the row or feature count for an existing dataset."""
 
 
 class DescribeDatasetInput(DatasetInput):
-    pass
+    """Return dataset metadata such as data type, geometry type, CRS, and extent."""
 
 
 class CreateFileGdbInput(ToolInput):
-    parent_folder: str = Field(..., description="Existing folder for the new .gdb.")
-    gdb_name: str = Field(..., pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=100)
+    """Create a new file geodatabase in an existing folder."""
+
+    parent_folder: str = Field(
+        ...,
+        description=(
+            "Absolute path to an existing folder where the new file geodatabase "
+            "will be created. The folder must be inside a configured PathGuard "
+            "allowed root."
+        ),
+    )
+    gdb_name: str = Field(
+        ...,
+        pattern=r"^[A-Za-z_][A-Za-z0-9_]*$",
+        max_length=100,
+        description=(
+            "Name of the new file geodatabase, without a path. Use a valid "
+            "geodatabase name such as analysis_scratch."
+        ),
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {"parent_folder": "read"}
 
 
 class CompactGdbInput(ToolInput):
-    gdb: str = Field(..., description="Path to the .gdb to compact.")
+    """Compact an existing file geodatabase to reclaim space."""
+
+    gdb: str = Field(
+        ...,
+        description=(
+            "Absolute path to the existing file geodatabase to compact. The "
+            "geodatabase must be inside a configured PathGuard allowed root."
+        ),
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {"gdb": "read"}
 
 
 class ExportToShapefileInput(ToolInput):
-    in_features: str
-    output_folder: str = Field(..., description="Existing destination folder.")
+    """Export a feature class to shapefile format in an existing folder."""
+
+    in_features: str = Field(
+        ...,
+        description=(
+            "Absolute path to the input feature class or layer to export. The "
+            "path must be inside a configured PathGuard allowed root."
+        ),
+    )
+    output_folder: str = Field(
+        ...,
+        description=(
+            "Existing destination folder for the shapefile output. The folder "
+            "must be inside a configured PathGuard allowed root."
+        ),
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_features": "read",
         "output_folder": "read",
@@ -157,9 +367,26 @@ class ExportToShapefileInput(ToolInput):
 
 
 class ExportToGeojsonInput(ToolInput):
-    in_features: str
-    out_json: str = Field(..., description="Output .geojson path.")
-    overwrite: bool = False
+    """Export features to a GeoJSON file in WGS84."""
+
+    in_features: str = Field(
+        ...,
+        description=(
+            "Absolute path to the input feature class or layer to export as "
+            "GeoJSON. The path must be inside a configured PathGuard allowed root."
+        ),
+    )
+    out_json: str = Field(
+        ...,
+        description=(
+            "Absolute output .geojson file path to create. Existing files "
+            "require overwrite=true."
+        ),
+    )
+    overwrite: bool = Field(
+        default=False,
+        description="Set true only when replacing an existing GeoJSON file is intended.",
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_features": "read",
         "out_json": "write",
@@ -167,9 +394,28 @@ class ExportToGeojsonInput(ToolInput):
 
 
 class ImportFromGeojsonInput(ToolInput):
-    in_json: str
-    out_features: str
-    overwrite: bool = False
+    """Convert a GeoJSON file into an ArcGIS feature class."""
+
+    in_json: str = Field(
+        ...,
+        description=(
+            "Absolute path to the input .geojson file to convert. The file must "
+            "be inside a configured PathGuard allowed root."
+        ),
+    )
+    out_features: str = Field(
+        ...,
+        description=(
+            "Absolute output feature class path to create from the GeoJSON. "
+            "Existing outputs require overwrite=true."
+        ),
+    )
+    overwrite: bool = Field(
+        default=False,
+        description=(
+            "Set true only when replacing an existing output feature class is intended."
+        ),
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_json": "read",
         "out_features": "write",
@@ -177,9 +423,27 @@ class ImportFromGeojsonInput(ToolInput):
 
 
 class TableToExcelInput(ToolInput):
-    table: str
-    out_xlsx: str
-    overwrite: bool = False
+    """Export an attribute table to an Excel workbook."""
+
+    table: str = Field(
+        ...,
+        description=(
+            "Absolute path to the input table or feature class whose attributes "
+            "will be exported. The path must be inside a configured PathGuard "
+            "allowed root."
+        ),
+    )
+    out_xlsx: str = Field(
+        ...,
+        description=(
+            "Absolute output .xlsx path to create. Existing files require "
+            "overwrite=true."
+        ),
+    )
+    overwrite: bool = Field(
+        default=False,
+        description="Set true only when replacing an existing Excel file is intended.",
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "table": "read",
         "out_xlsx": "write",
@@ -187,10 +451,35 @@ class TableToExcelInput(ToolInput):
 
 
 class ExcelToTableInput(ToolInput):
-    in_xlsx: str
-    out_table: str
-    sheet: Optional[str] = None
-    overwrite: bool = False
+    """Import an Excel worksheet into a geodatabase table."""
+
+    in_xlsx: str = Field(
+        ...,
+        description=(
+            "Absolute path to the input .xlsx workbook. The file must be inside "
+            "a configured PathGuard allowed root."
+        ),
+    )
+    out_table: str = Field(
+        ...,
+        description=(
+            "Absolute output geodatabase table path to create. Existing outputs "
+            "require overwrite=true."
+        ),
+    )
+    sheet: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional worksheet name to import. Use None to let ArcPy choose the "
+            "default sheet."
+        ),
+    )
+    overwrite: bool = Field(
+        default=False,
+        description=(
+            "Set true only when replacing an existing output table is intended."
+        ),
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_xlsx": "read",
         "out_table": "write",
@@ -198,9 +487,26 @@ class ExcelToTableInput(ToolInput):
 
 
 class FeatureToCsvInput(ToolInput):
-    in_table: str
-    out_csv: str = Field(..., description="Output .csv path.")
-    overwrite: bool = False
+    """Export a feature class or table to a CSV file."""
+
+    in_table: str = Field(
+        ...,
+        description=(
+            "Absolute path to the input feature class or table whose rows will "
+            "be exported. The path must be inside a configured PathGuard allowed root."
+        ),
+    )
+    out_csv: str = Field(
+        ...,
+        description=(
+            "Absolute output .csv file path to create. Existing files require "
+            "overwrite=true."
+        ),
+    )
+    overwrite: bool = Field(
+        default=False,
+        description="Set true only when replacing an existing CSV file is intended.",
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_table": "read",
         "out_csv": "write",
@@ -208,7 +514,7 @@ class FeatureToCsvInput(ToolInput):
 
 
 class GetExtentInput(DatasetInput):
-    pass
+    """Return xmin, ymin, xmax, ymax, and CRS metadata for a dataset extent."""
 
 
 GeometryProperty = Literal[
@@ -226,11 +532,38 @@ GeometryProperty = Literal[
 
 
 class CalculateGeometryInput(DatasetInput):
-    field_name: str = Field(..., max_length=64)
-    geometry_property: GeometryProperty
-    area_unit: Optional[str] = Field(default=None, description="e.g. SQUARE_METERS")
-    length_unit: Optional[str] = Field(default=None, description="e.g. METERS")
+    """Calculate area, length, perimeter, centroid, or point coordinate attributes."""
+
+    field_name: str = Field(
+        ...,
+        max_length=64,
+        description=(
+            "Existing or target field name that will receive the calculated "
+            "geometry value."
+        ),
+    )
+    geometry_property: GeometryProperty = Field(
+        ...,
+        description=(
+            "Geometry property to calculate, such as AREA, LENGTH, CENTROID_X, "
+            "CENTROID_Y, POINT_X, or POINT_Y."
+        ),
+    )
+    area_unit: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional area unit for area calculations, for example SQUARE_METERS. "
+            "Ignored for non-area geometry properties."
+        ),
+    )
+    length_unit: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional length unit for length or perimeter calculations, for example "
+            "METERS. Ignored for non-length geometry properties."
+        ),
+    )
 
 
 class AddXyCoordinatesInput(DatasetInput):
-    pass
+    """Add or update POINT_X and POINT_Y coordinate fields on point features."""

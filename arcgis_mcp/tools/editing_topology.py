@@ -100,51 +100,92 @@ _CAT = Category.EDITING
 _SPECS = (
     (
         "append_features",
-        "Append rows from FCs into an existing target (Append). Mutates the "
-        "target; requires confirm=true.",
+        (
+            "Append rows from one or more feature classes or tables into an existing "
+            "target dataset using ArcPy Append. Use this to load reviewed data, "
+            "merge field-compatible updates, or add processed batches into a live "
+            "target. This mutates the target dataset by inserting rows, so "
+            "confirm=true is required."
+        ),
         c.AppendFeaturesInput,
         _append_features,
         True,
     ),
     (
         "repair_geometry",
-        "Fix invalid geometries in place (RepairGeometry). Requires confirm=true.",
+        (
+            "Repair invalid feature geometry in place using ArcPy RepairGeometry. "
+            "Use this after check_geometry reports geometry problems or before "
+            "overlay, topology, network, or export operations that require valid "
+            "shapes. This rewrites geometry and may delete null geometries, so "
+            "confirm=true is required."
+        ),
         c.RepairGeometryInput,
         _repair_geometry,
         True,
     ),
     (
         "check_geometry",
-        "Report geometry problems into a table without fixing (CheckGeometry).",
+        (
+            "Check a feature class for geometry problems using ArcPy CheckGeometry "
+            "and write the findings to an output table. Use this as a non-mutating "
+            "QA/QC step before repair_geometry, overlay, topology validation, "
+            "conversion, or export. Reads the input features and writes a report "
+            "table inside PathGuard allowed roots."
+        ),
         c.CheckGeometryInput,
         _check_geometry,
         False,
     ),
     (
         "detect_feature_changes",
-        "Diff two line FCs spatially/attributively (DetectFeatureChanges).",
+        (
+            "Detect spatial or attribute changes between updated features and a "
+            "reference feature dataset using ArcPy DetectFeatureChanges. Use this "
+            "for QA/QC, version comparison, update review, or identifying changed "
+            "features within a search tolerance. Reads update_features and "
+            "base_features and writes a new out_features change dataset without "
+            "mutating the originals."
+        ),
         c.DetectFeatureChangesInput,
         _detect_feature_changes,
         False,
     ),
     (
         "delete_identical",
-        "Delete duplicate rows by field/geometry equality (DeleteIdentical). "
-        "Irreversible; requires confirm=true.",
+        (
+            "Delete duplicate rows from a feature class or table using ArcPy "
+            "DeleteIdentical based on selected fields and optional geometry "
+            "tolerance. Use this only on an intended working dataset to remove "
+            "duplicate records. This operation is irreversible and mutates the "
+            "input dataset, so confirm=true is required."
+        ),
         c.DeleteIdenticalInput,
         _delete_identical,
         True,
     ),
     (
         "eliminate_polygon_part",
-        "Merge small polygon parts into neighbors (EliminatePolygonPart).",
+        (
+            "Remove small polygon holes or parts using ArcPy EliminatePolygonPart "
+            "and write a cleaned output feature class. Use this for cartographic "
+            "cleanup, removing sliver holes, or simplifying polygon interiors by "
+            "area or percentage thresholds. Reads in_features and writes "
+            "out_features without modifying the source dataset."
+        ),
         c.EliminatePolygonPartInput,
         _eliminate_polygon_part,
         False,
     ),
     (
         "topology_check",
-        "Validate a geodatabase topology's rules (ValidateTopology).",
+        (
+            "Validate a geodatabase topology using ArcPy ValidateTopology. Use this "
+            "to refresh topology rule validation after editing, appending, repair, "
+            "or geometry cleanup workflows. Reads the topology dataset and returns "
+            "validation metadata; inspect the topology error feature classes in "
+            "ArcGIS Pro for rule violations."
+        ),
         c.TopologyCheckInput,
         _topology_check,
         False,

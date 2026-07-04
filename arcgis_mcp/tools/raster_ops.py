@@ -214,100 +214,172 @@ _CAT = Category.RASTER
 _SPECS = (
     (
         "extract_by_mask",
-        "Clip a raster by a polygon/raster mask (sa.ExtractByMask). "
-        "Requires Spatial Analyst.",
+        (
+            "Extract raster cells inside a polygon or raster mask using ArcPy "
+            "Spatial Analyst ExtractByMask. Use this to clip elevation, imagery, "
+            "land-cover, suitability, or other raster data to a study area before "
+            "analysis. Requires a Spatial Analyst license; reads in_raster and "
+            "mask inside PathGuard roots and writes out_raster."
+        ),
         c.ExtractByMaskInput,
         _extract_by_mask,
     ),
     (
         "raster_calculator",
-        "Map algebra over named raster variables, e.g. NDVI = (nir-red)/(nir+red) "
-        "(sa.RasterCalculator). Requires Spatial Analyst.",
+        (
+            "Run Spatial Analyst map algebra over explicitly named raster "
+            "variables using ArcPy RasterCalculator. Use this for NDVI, suitability "
+            "models, binary masks, raster normalization, and cell-by-cell formulas. "
+            "Requires a Spatial Analyst license; expressions may reference only "
+            "declared variable_names and validated map-algebra syntax."
+        ),
         c.RasterCalculatorInput,
         _raster_calculator,
     ),
     (
         "resample_raster",
-        "Change raster cell size with NEAREST/BILINEAR/CUBIC/MAJORITY (Resample).",
+        (
+            "Change raster cell size using ArcPy Resample. Use this to align "
+            "resolution before overlay, modeling, visualization, or export. Reads "
+            "one input raster and writes out_raster inside PathGuard roots; choose "
+            "a resampling method appropriate for categorical or continuous data."
+        ),
         c.ResampleRasterInput,
         _resample_raster,
     ),
     (
         "mosaic_to_new_raster",
-        "Merge multiple rasters into one dataset (MosaicToNewRaster).",
+        (
+            "Merge multiple raster datasets into one new raster using ArcPy "
+            "MosaicToNewRaster. Use this to combine tiles, scenes, DEM sheets, or "
+            "image bands into a single dataset. Reads two or more input rasters "
+            "and writes a named raster into an existing folder or geodatabase."
+        ),
         c.MosaicToNewRasterInput,
         _mosaic_to_new_raster,
     ),
     (
         "raster_to_polygon",
-        "Vectorize a classified raster (conversion.RasterToPolygon).",
+        (
+            "Convert raster zones or classes to polygon features using ArcPy "
+            "RasterToPolygon. Use this to vectorize classified rasters, suitability "
+            "classes, land-cover codes, or cell regions for GIS editing, overlay, "
+            "and cartographic workflows. Reads in_raster and writes out_features."
+        ),
         c.RasterToPolygonInput,
         _raster_to_polygon,
     ),
     (
         "polygon_to_raster",
-        "Rasterize polygons by a value field (conversion.PolygonToRaster).",
+        (
+            "Convert polygon features to a raster dataset using ArcPy "
+            "PolygonToRaster. Use this when vector zones, classes, parcels, or "
+            "planning units need to become raster cells for map algebra, "
+            "suitability modeling, or raster overlay. Reads polygon features and "
+            "writes out_raster using value_field, cell_assignment, and cell_size."
+        ),
         c.PolygonToRasterInput,
         _polygon_to_raster,
     ),
     (
         "zonal_statistics",
-        "Per-zone raster statistic as a raster (sa.ZonalStatistics). "
-        "Requires Spatial Analyst.",
+        (
+            "Calculate one raster statistic per zone and write the result as a "
+            "raster using ArcPy Spatial Analyst ZonalStatistics. Use this when "
+            "each zone should receive a MEAN, SUM, MIN, MAX, or similar value "
+            "from an input value raster. Requires a Spatial Analyst license."
+        ),
         c.ZonalStatisticsInput,
         _zonal_statistics,
     ),
     (
         "zonal_statistics_as_table",
-        "Per-zone raster statistics as a table (sa.ZonalStatisticsAsTable). "
-        "Requires Spatial Analyst.",
+        (
+            "Calculate zonal statistics and write the results to a standalone "
+            "table using ArcPy Spatial Analyst ZonalStatisticsAsTable. Use this "
+            "to summarize raster values by districts, parcels, watersheds, grid "
+            "cells, or other zone datasets. Requires a Spatial Analyst license."
+        ),
         c.ZonalStatisticsAsTableInput,
         _zonal_statistics_as_table,
     ),
     (
         "slope_analysis",
-        "Slope (degrees or percent rise) from a DEM (sa.Slope). "
-        "Requires Spatial Analyst.",
+        (
+            "Derive slope from an elevation raster using ArcPy Spatial Analyst "
+            "Slope. Use this in terrain, hydrology, accessibility, hazard, and "
+            "site suitability workflows. Requires a Spatial Analyst license; "
+            "writes a slope raster in degrees or percent rise using z_factor."
+        ),
         c.SlopeAnalysisInput,
         _slope,
     ),
     (
         "aspect_analysis",
-        "Aspect (downslope direction) from a DEM (sa.Aspect). "
-        "Requires Spatial Analyst.",
+        (
+            "Derive downslope aspect direction from an elevation raster using "
+            "ArcPy Spatial Analyst Aspect. Use this for terrain interpretation, "
+            "solar exposure, ecological modeling, hydrology, and site suitability. "
+            "Requires a Spatial Analyst license and writes a new aspect raster."
+        ),
         c.AspectAnalysisInput,
         _aspect,
     ),
     (
         "hillshade",
-        "Illumination shading from a DEM with sun azimuth/altitude "
-        "(sa.Hillshade). Requires Spatial Analyst.",
+        (
+            "Create shaded relief from an elevation raster using ArcPy Spatial "
+            "Analyst Hillshade. Use this for terrain visualization, map backdrops, "
+            "and DEM QA/QC with controlled sun azimuth, altitude, shadow modeling, "
+            "and z_factor. Requires a Spatial Analyst license."
+        ),
         c.HillshadeInput,
         _hillshade,
     ),
     (
         "contour_lines",
-        "Vector elevation isolines from a DEM (sa.Contour). Requires Spatial Analyst.",
+        (
+            "Create vector elevation isolines from a DEM raster using ArcPy "
+            "Spatial Analyst Contour. Use this to generate cartographic contours, "
+            "terrain analysis inputs, or elevation reference lines. Requires a "
+            "Spatial Analyst license and writes a polyline feature class."
+        ),
         c.ContourLinesInput,
         _contour_lines,
     ),
     (
         "flow_direction",
-        "D8 hydrological flow direction raster (sa.FlowDirection). "
-        "Requires Spatial Analyst.",
+        (
+            "Derive a hydrologic flow-direction raster from an elevation or "
+            "surface raster using ArcPy Spatial Analyst FlowDirection. Use this "
+            "before flow accumulation, watershed delineation, drainage modeling, "
+            "or stream extraction. Requires a Spatial Analyst license; writes "
+            "out_raster and can optionally force edge cells to flow outward."
+        ),
         c.FlowDirectionInput,
         _flow_direction,
     ),
     (
         "fill_sinks",
-        "Fill DEM sinks for hydrological conditioning (sa.Fill). "
-        "Requires Spatial Analyst.",
+        (
+            "Fill sinks or depressions in an elevation raster using ArcPy Spatial "
+            "Analyst Fill. Use this to hydrologically condition DEMs before flow "
+            "direction, flow accumulation, watershed, or stream network analysis. "
+            "Requires a Spatial Analyst license; optional z_limit controls maximum "
+            "sink depth to fill."
+        ),
         c.FillSinksInput,
         _fill_sinks,
     ),
     (
         "clip_raster",
-        "Clip a raster by rectangle and/or template geometry (management.Clip).",
+        (
+            "Clip a raster by rectangle, template extent, or template polygon "
+            "geometry using ArcPy management Clip. Use this to crop imagery, DEMs, "
+            "or classified rasters to a study area without requiring Spatial "
+            "Analyst. Reads in_raster and optional template_dataset and writes "
+            "out_raster inside PathGuard roots."
+        ),
         c.ClipRasterInput,
         _clip_raster,
     ),

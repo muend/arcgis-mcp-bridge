@@ -46,11 +46,29 @@ _MAP_ALGEBRA_CHARS = re.compile(r"^[A-Za-z0-9_+\-*/().,%<>=!&|~^ \t]+$")
 
 
 class RasterInOut(ToolInput):
-    """Shared base: one input raster, one output raster."""
+    """Shared base for tools that read one raster and create one raster output."""
 
-    in_raster: str = Field(..., min_length=1)
-    out_raster: str = Field(..., min_length=1)
-    overwrite: bool = False
+    in_raster: str = Field(
+        ...,
+        min_length=1,
+        description=(
+            "Absolute path to the existing input raster dataset. The path must "
+            "be inside a configured PathGuard allowed root."
+        ),
+    )
+    out_raster: str = Field(
+        ...,
+        min_length=1,
+        description=(
+            "Absolute output raster path to create. The path must be inside a "
+            "configured PathGuard allowed root; existing outputs require "
+            "overwrite=true."
+        ),
+    )
+    overwrite: bool = Field(
+        default=False,
+        description="Set true only when replacing an existing output raster is intended.",
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_raster": "read",
         "out_raster": "write",
@@ -58,18 +76,30 @@ class RasterInOut(ToolInput):
 
 
 class DemDerivative(RasterInOut):
-    """Shared base: DEM-derived surfaces with a vertical exaggeration factor."""
+    """Shared base for DEM-derived raster surfaces."""
 
     z_factor: float = Field(
         default=1.0,
         gt=0,
-        description="Vertical unit conversion (e.g. 0.3048 if Z is in feet "
-        "and XY in meters).",
+        description=(
+            "Vertical unit conversion or exaggeration factor. Use 1.0 when XY "
+            "and Z units already match; for example use 0.3048 when elevation "
+            "Z values are in feet and XY units are meters."
+        ),
     )
 
 
 class ExtractByMaskInput(RasterInOut):
-    mask: str = Field(..., description="Polygon FC or raster acting as the mask.")
+    """Input contract for extracting raster cells inside a mask."""
+
+    mask: str = Field(
+        ...,
+        description=(
+            "Absolute path to a polygon feature class or raster dataset used as "
+            "the extraction mask. The mask must be inside a configured PathGuard "
+            "allowed root."
+        ),
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_raster": "read",
         "mask": "read",
@@ -86,11 +116,48 @@ class RasterCalculatorInput(ToolInput):
     parser receives the expression verbatim.
     """
 
-    rasters: List[str] = Field(..., min_length=1, max_length=10)
-    variable_names: List[str] = Field(..., min_length=1, max_length=10)
-    expression: str = Field(..., min_length=1, max_length=2000)
-    out_raster: str
-    overwrite: bool = False
+    rasters: List[str] = Field(
+        ...,
+        min_length=1,
+        max_length=10,
+        description=(
+            "Absolute paths to input raster datasets used by the map-algebra "
+            "expression. Each path must be inside a configured PathGuard "
+            "allowed root."
+        ),
+    )
+    variable_names: List[str] = Field(
+        ...,
+        min_length=1,
+        max_length=10,
+        description=(
+            "Identifier names used inside the expression to reference the rasters. "
+            "The list length must match rasters, and each name must be a valid "
+            "identifier such as red, nir, or elevation."
+        ),
+    )
+    expression: str = Field(
+        ...,
+        min_length=1,
+        max_length=2000,
+        description=(
+            "Map-algebra expression using only declared variable_names, numbers, "
+            "operators, comparisons, parentheses, commas, and supported Spatial "
+            "Analyst functions. Inline file paths, quotes, and dunder access are "
+            "rejected."
+        ),
+    )
+    out_raster: str = Field(
+        ...,
+        description=(
+            "Absolute output raster path to create from the map-algebra result. "
+            "Existing outputs require overwrite=true."
+        ),
+    )
+    overwrite: bool = Field(
+        default=False,
+        description="Set true only when replacing an existing output raster is intended.",
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "rasters": "read_list",
         "out_raster": "write",
@@ -135,23 +202,83 @@ class RasterCalculatorInput(ToolInput):
 
 
 class ResampleRasterInput(RasterInOut):
-    cell_size: float = Field(..., gt=0, description="Target cell size (map units).")
-    resampling_type: RasterResampling = "NEAREST"
+    """Input contract for changing raster cell size and resampling method."""
+
+    cell_size: float = Field(
+        ...,
+        gt=0,
+        description=(
+            "Target output cell size in map units. Larger values produce coarser "
+            "rasters; smaller values produce finer rasters."
+        ),
+    )
+    resampling_type: RasterResampling = Field(
+        default="NEAREST",
+        description=(
+            "Resampling method used when creating the output raster. Use NEAREST "
+            "for categorical rasters and bilinear/cubic-style methods for "
+            "continuous rasters when available."
+        ),
+    )
 
 
 class MosaicToNewRasterInput(ToolInput):
-    rasters: List[str] = Field(..., min_length=2, max_length=50)
-    output_location: str = Field(..., description="Existing folder or GDB.")
+    """Input contract for mosaicking multiple rasters into a new raster dataset."""
+
+    rasters: List[str] = Field(
+        ...,
+        min_length=2,
+        max_length=50,
+        description=(
+            "Absolute paths to two or more input raster datasets to mosaic. Each "
+            "path must be inside a configured PathGuard allowed root."
+        ),
+    )
+    output_location: str = Field(
+        ...,
+        description=(
+            "Absolute path to an existing folder or geodatabase where the mosaic "
+            "output raster will be created. Must be inside a configured PathGuard "
+            "allowed root."
+        ),
+    )
     raster_name: str = Field(
         ...,
         min_length=1,
         max_length=128,
-        description="Output name (with .tif etc. if folder).",
+        description=(
+            "Name of the output raster. Include an extension such as .tif when "
+            "writing to a folder; use a geodatabase raster name when writing to a GDB."
+        ),
     )
-    number_of_bands: int = Field(..., ge=1, le=400)
-    pixel_type: PixelType = "32_BIT_FLOAT"
-    mosaic_method: MosaicMethod = "LAST"
-    cell_size: Optional[float] = Field(default=None, gt=0)
+    number_of_bands: int = Field(
+        ...,
+        ge=1,
+        le=400,
+        description="Number of bands in the output raster dataset.",
+    )
+    pixel_type: PixelType = Field(
+        default="32_BIT_FLOAT",
+        description=(
+            "Pixel depth and numeric type for the output raster, such as "
+            "8_BIT_UNSIGNED, 16_BIT_SIGNED, or 32_BIT_FLOAT."
+        ),
+    )
+    mosaic_method: MosaicMethod = Field(
+        default="LAST",
+        description=(
+            "Method used to resolve overlapping raster cells, such as FIRST, LAST, "
+            "BLEND, MEAN, MINIMUM, or MAXIMUM."
+        ),
+    )
+    cell_size: Optional[float] = Field(
+        default=None,
+        gt=0,
+        description=(
+            "Optional output cell size in map units. Use None to let ArcPy choose "
+            "from the input rasters."
+        ),
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "rasters": "read_list",
         "output_location": "read",
@@ -159,11 +286,44 @@ class MosaicToNewRasterInput(ToolInput):
 
 
 class RasterToPolygonInput(ToolInput):
-    in_raster: str
-    out_features: str
-    simplify: bool = Field(default=True, description="Smooth cell-edge stairsteps.")
-    raster_field: str = Field(default="Value", max_length=64)
-    overwrite: bool = False
+    """Input contract for converting raster zones or classes to polygons."""
+
+    in_raster: str = Field(
+        ...,
+        description=(
+            "Absolute path to the input raster dataset to convert to polygons. "
+            "The path must be inside a configured PathGuard allowed root."
+        ),
+    )
+    out_features: str = Field(
+        ...,
+        description=(
+            "Absolute output polygon feature class path to create. Existing "
+            "outputs require overwrite=true."
+        ),
+    )
+    simplify: bool = Field(
+        default=True,
+        description=(
+            "When true, smooth polygon boundaries to reduce cell-edge stair steps. "
+            "When false, preserve exact raster cell edges."
+        ),
+    )
+    raster_field: str = Field(
+        default="Value",
+        max_length=64,
+        description=(
+            "Raster attribute field used to assign polygon values. The default "
+            "Value field is appropriate for most classified rasters."
+        ),
+    )
+    overwrite: bool = Field(
+        default=False,
+        description=(
+            "Set true only when replacing an existing output polygon feature "
+            "class is intended."
+        ),
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_raster": "read",
         "out_features": "write",
@@ -171,14 +331,50 @@ class RasterToPolygonInput(ToolInput):
 
 
 class PolygonToRasterInput(ToolInput):
-    in_features: str
-    value_field: str = Field(..., min_length=1, max_length=64)
-    out_raster: str
-    cell_assignment: Literal["CELL_CENTER", "MAXIMUM_AREA", "MAXIMUM_COMBINED_AREA"] = (
-        "CELL_CENTER"
+    """Input contract for converting polygon features to raster cells."""
+
+    in_features: str = Field(
+        ...,
+        description=(
+            "Absolute path to the input polygon feature class. The path must be "
+            "inside a configured PathGuard allowed root."
+        ),
     )
-    cell_size: float = Field(..., gt=0)
-    overwrite: bool = False
+    value_field: str = Field(
+        ...,
+        min_length=1,
+        max_length=64,
+        description=(
+            "Attribute field whose values will be burned into output raster cells."
+        ),
+    )
+    out_raster: str = Field(
+        ...,
+        description=(
+            "Absolute output raster path to create. Existing outputs require "
+            "overwrite=true."
+        ),
+    )
+    cell_assignment: Literal["CELL_CENTER", "MAXIMUM_AREA", "MAXIMUM_COMBINED_AREA"] = (
+        Field(
+            default="CELL_CENTER",
+            description=(
+                "Rule used to assign polygon values to raster cells. CELL_CENTER "
+                "uses the polygon covering the cell center; MAXIMUM_AREA uses the "
+                "polygon occupying the largest cell area; MAXIMUM_COMBINED_AREA "
+                "combines areas by value."
+            ),
+        )
+    )
+    cell_size: float = Field(
+        ...,
+        gt=0,
+        description="Output raster cell size in map units.",
+    )
+    overwrite: bool = Field(
+        default=False,
+        description="Set true only when replacing an existing output raster is intended.",
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_features": "read",
         "out_raster": "write",
@@ -186,12 +382,49 @@ class PolygonToRasterInput(ToolInput):
 
 
 class ZonalStatisticsInput(ToolInput):
-    in_zone_data: str = Field(..., description="Polygon FC or zone raster.")
-    zone_field: str = Field(..., min_length=1, max_length=64)
-    in_value_raster: str
-    out_raster: str
-    statistics_type: ZonalStatType = "MEAN"
-    overwrite: bool = False
+    """Input contract for calculating one zonal statistic as a raster output."""
+
+    in_zone_data: str = Field(
+        ...,
+        description=(
+            "Absolute path to polygon zone features or a zone raster. The path "
+            "must be inside a configured PathGuard allowed root."
+        ),
+    )
+    zone_field: str = Field(
+        ...,
+        min_length=1,
+        max_length=64,
+        description=(
+            "Zone identifier field used to group value raster cells for statistics."
+        ),
+    )
+    in_value_raster: str = Field(
+        ...,
+        description=(
+            "Absolute path to the raster containing values to summarize within "
+            "each zone. The path must be inside a configured PathGuard allowed root."
+        ),
+    )
+    out_raster: str = Field(
+        ...,
+        description=(
+            "Absolute output raster path to create with one statistic value per "
+            "zone. Existing outputs require overwrite=true."
+        ),
+    )
+    statistics_type: ZonalStatType = Field(
+        default="MEAN",
+        description=(
+            "Statistic to calculate for each zone, such as MEAN, SUM, MIN, MAX, "
+            "RANGE, STD, MEDIAN, MAJORITY, MINORITY, or VARIETY. ALL is rejected "
+            "for raster output."
+        ),
+    )
+    overwrite: bool = Field(
+        default=False,
+        description="Set true only when replacing an existing output raster is intended.",
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_zone_data": "read",
         "in_value_raster": "read",
@@ -209,12 +442,48 @@ class ZonalStatisticsInput(ToolInput):
 
 
 class ZonalStatisticsAsTableInput(ToolInput):
-    in_zone_data: str
-    zone_field: str = Field(..., min_length=1, max_length=64)
-    in_value_raster: str
-    out_table: str
-    statistics_type: ZonalStatType = "ALL"
-    overwrite: bool = False
+    """Input contract for writing zonal statistics to a standalone table."""
+
+    in_zone_data: str = Field(
+        ...,
+        description=(
+            "Absolute path to polygon zone features or a zone raster. The path "
+            "must be inside a configured PathGuard allowed root."
+        ),
+    )
+    zone_field: str = Field(
+        ...,
+        min_length=1,
+        max_length=64,
+        description=(
+            "Zone identifier field used to group value raster cells for statistics."
+        ),
+    )
+    in_value_raster: str = Field(
+        ...,
+        description=(
+            "Absolute path to the raster containing values to summarize within "
+            "each zone. The path must be inside a configured PathGuard allowed root."
+        ),
+    )
+    out_table: str = Field(
+        ...,
+        description=(
+            "Absolute output table path to create with zonal statistics. Existing "
+            "outputs require overwrite=true."
+        ),
+    )
+    statistics_type: ZonalStatType = Field(
+        default="ALL",
+        description=(
+            "Statistic or statistic set to calculate. ALL writes the full supported "
+            "statistics set to the output table."
+        ),
+    )
+    overwrite: bool = Field(
+        default=False,
+        description="Set true only when replacing an existing output table is intended.",
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_zone_data": "read",
         "in_value_raster": "read",
@@ -223,26 +492,91 @@ class ZonalStatisticsAsTableInput(ToolInput):
 
 
 class SlopeAnalysisInput(DemDerivative):
-    output_measurement: Literal["DEGREE", "PERCENT_RISE"] = "DEGREE"
+    """Input contract for deriving slope from an elevation raster."""
+
+    output_measurement: Literal["DEGREE", "PERCENT_RISE"] = Field(
+        default="DEGREE",
+        description=(
+            "Slope output unit. DEGREE returns slope angle in degrees; "
+            "PERCENT_RISE returns rise over run as a percentage."
+        ),
+    )
 
 
 class AspectAnalysisInput(DemDerivative):
-    pass
+    """Input contract for deriving aspect direction from an elevation raster."""
 
 
 class HillshadeInput(DemDerivative):
-    azimuth: float = Field(default=315.0, ge=0.0, le=360.0)
-    altitude: float = Field(default=45.0, ge=0.0, le=90.0)
-    model_shadows: bool = False
+    """Input contract for deriving shaded relief from an elevation raster."""
+
+    azimuth: float = Field(
+        default=315.0,
+        ge=0.0,
+        le=360.0,
+        description=(
+            "Illumination azimuth in degrees clockwise from north. The default "
+            "315 degrees represents northwest light."
+        ),
+    )
+    altitude: float = Field(
+        default=45.0,
+        ge=0.0,
+        le=90.0,
+        description=(
+            "Illumination altitude angle in degrees above the horizon. Higher "
+            "values create more overhead lighting."
+        ),
+    )
+    model_shadows: bool = Field(
+        default=False,
+        description=(
+            "When true, model terrain shadows where supported by ArcPy hillshade."
+        ),
+    )
 
 
 class ContourLinesInput(ToolInput):
-    in_dem: str
-    out_features: str = Field(..., description="Output polyline FC of isolines.")
-    contour_interval: float = Field(..., gt=0)
-    base_contour: float = 0.0
-    z_factor: float = Field(default=1.0, gt=0)
-    overwrite: bool = False
+    """Input contract for deriving contour isolines from a DEM raster."""
+
+    in_dem: str = Field(
+        ...,
+        description=(
+            "Absolute path to the input elevation raster. The path must be inside "
+            "a configured PathGuard allowed root."
+        ),
+    )
+    out_features: str = Field(
+        ...,
+        description=(
+            "Absolute output polyline feature class path for contour isolines. "
+            "Existing outputs require overwrite=true."
+        ),
+    )
+    contour_interval: float = Field(
+        ...,
+        gt=0,
+        description="Elevation interval between contour lines in DEM vertical units.",
+    )
+    base_contour: float = Field(
+        default=0.0,
+        description="Base contour value from which intervals are calculated.",
+    )
+    z_factor: float = Field(
+        default=1.0,
+        gt=0,
+        description=(
+            "Vertical unit conversion or exaggeration factor applied before "
+            "contour generation."
+        ),
+    )
+    overwrite: bool = Field(
+        default=False,
+        description=(
+            "Set true only when replacing an existing output contour feature "
+            "class is intended."
+        ),
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_dem": "read",
         "out_features": "write",
@@ -250,34 +584,84 @@ class ContourLinesInput(ToolInput):
 
 
 class FlowDirectionInput(RasterInOut):
+    """Input contract for deriving hydrologic flow direction from a surface raster."""
+
     force_flow: bool = Field(
         default=False,
-        description="True forces edge cells to flow outward (FORCE).",
+        description=(
+            "When true, force edge cells to flow outward using ArcPy FORCE "
+            "behavior. When false, use the default NORMAL behavior."
+        ),
     )
 
 
 class FillSinksInput(RasterInOut):
+    """Input contract for filling sinks in an elevation raster."""
+
     z_limit: Optional[float] = Field(
         default=None,
         gt=0,
-        description="Max sink depth to fill; None fills all sinks.",
+        description=(
+            "Maximum sink depth to fill. Use None to fill all sinks detected by "
+            "ArcPy; use a positive value to limit filling to shallow sinks."
+        ),
     )
 
 
 class ClipRasterInput(RasterInOut):
-    """Clip by explicit rectangle and/or template dataset geometry."""
+    """Input contract for clipping a raster by rectangle or template dataset."""
 
-    xmin: Optional[float] = None
-    ymin: Optional[float] = None
-    xmax: Optional[float] = None
-    ymax: Optional[float] = None
+    xmin: Optional[float] = Field(
+        default=None,
+        description=(
+            "Minimum X coordinate of the clipping rectangle. Provide all four "
+            "rectangle bounds together, or leave all bounds None and use "
+            "template_dataset."
+        ),
+    )
+    ymin: Optional[float] = Field(
+        default=None,
+        description=(
+            "Minimum Y coordinate of the clipping rectangle. Provide all four "
+            "rectangle bounds together, or leave all bounds None and use "
+            "template_dataset."
+        ),
+    )
+    xmax: Optional[float] = Field(
+        default=None,
+        description=(
+            "Maximum X coordinate of the clipping rectangle. Must be greater than "
+            "xmin when rectangle clipping is used."
+        ),
+    )
+    ymax: Optional[float] = Field(
+        default=None,
+        description=(
+            "Maximum Y coordinate of the clipping rectangle. Must be greater than "
+            "ymin when rectangle clipping is used."
+        ),
+    )
     template_dataset: Optional[str] = Field(
-        default=None, description="FC/raster whose extent (or geometry) clips."
+        default=None,
+        description=(
+            "Optional feature class or raster whose extent, or polygon geometry "
+            "when use_clipping_geometry=true, defines the clipping area."
+        ),
     )
     use_clipping_geometry: bool = Field(
-        default=False, description="Clip to template polygon geometry, not extent."
+        default=False,
+        description=(
+            "When true, clip to the template polygon geometry instead of only the "
+            "template extent. Requires template_dataset."
+        ),
     )
-    nodata_value: Optional[str] = None
+    nodata_value: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional NoData value assigned outside the clipping area where ArcPy "
+            "supports it."
+        ),
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_raster": "read",
         "template_dataset": "read",
