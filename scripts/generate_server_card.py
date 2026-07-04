@@ -52,10 +52,28 @@ def _card_tool(spec: registry.ToolSpec) -> dict[str, object]:
         input_schema["required"] = schema["required"]
     if "$defs" in schema:
         input_schema["$defs"] = schema["$defs"]
+    annotations = {
+        "destructiveHint": spec.destructive,
+        "openWorldHint": False,  # all tools operate on local GIS data only
+    }
+    if spec.name.startswith(("get_", "list_", "describe_")):
+        annotations["readOnlyHint"] = True
+    output_schema = {
+        "type": "object",
+        "description": (
+            "Structured result frame: tool-specific fields on success, or a "
+            "classified error object (validation/security/license/"
+            "geoprocessing/internal) on failure."
+        ),
+        "additionalProperties": True,
+    }
     return {
         "name": spec.name,
+        "title": spec.name.replace("_", " ").title(),
         "description": _described(spec),
         "inputSchema": input_schema,
+        "outputSchema": output_schema,
+        "annotations": annotations,
     }
 
 
@@ -79,6 +97,9 @@ def write_server_card() -> None:
 
 def sync_manifest_tools() -> None:
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+    # manifest.json must stay MCPB-schema valid: `mcpb pack` rejects any key
+    # other than name/description in tools[]. Full inputSchema entries live in
+    # server-card.json and are injected into the bundle by build_smithery_bundle.py.
     manifest["tools"] = [
         {"name": s.name, "description": _described(s)} for s in _sorted_specs()
     ]

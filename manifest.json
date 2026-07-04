@@ -28,7 +28,7 @@
     "model-context-protocol"
   ],
   "server": {
-    "type": "uv",
+    "type": "python",
     "entry_point": "arcgis_mcp/server.py",
     "mcp_config": {
       "command": "uv",
