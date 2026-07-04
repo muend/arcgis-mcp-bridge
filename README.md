@@ -7,7 +7,7 @@
 ![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)
 ![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)
 [![arcgis-mcp-bridge MCP server](https://glama.ai/mcp/servers/muend/arcgis-mcp-bridge/badges/score.svg)](https://glama.ai/mcp/servers/muend/arcgis-mcp-bridge)
-
+[![smithery badge](https://smithery.ai/badge/muend/arcgis-mcp-bridge)](https://smithery.ai/servers/muend/arcgis-mcp-bridge)
 
 # arcgis-mcp-bridge
 
