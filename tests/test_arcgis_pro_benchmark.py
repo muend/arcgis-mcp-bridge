@@ -1,6 +1,7 @@
 """License-free tests for the real-runtime benchmark harness."""
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -83,3 +84,37 @@ def test_outside_probe_and_redaction_are_boundary_safe(tmp_path: Path) -> None:
 def test_summarize_uses_unweighted_case_counts() -> None:
     result = summarize([{"status": "pass"}, {"status": "fail"}])
     assert result == {"total": 2, "passed": 1, "failed": 1, "pass_rate": 0.5}
+
+
+def test_published_result_is_sanitized_and_consistent() -> None:
+    root = Path(__file__).resolve().parents[1]
+    result_path = (
+        root
+        / "benchmarks"
+        / "results"
+        / "arcgis-pro-3.7-windows-2026-07-20.json"
+    )
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    cases = result["cases"]
+    summary = result["summary"]
+
+    assert result["schema_version"] == "1.0.0"
+    assert result["benchmark"] == "arcgis-pro-mcp-smoke"
+    assert result["condition"] == "write-safety"
+    assert result["status"] == "pass"
+    assert re.fullmatch(r"[0-9a-f]{40}", result["environment"]["source_commit"])
+    assert summary["total"] == len(cases) == 8
+    assert summary["passed"] == 8
+    assert summary["failed"] == 0
+    assert summary["pass_rate"] == 1.0
+    assert all(case["status"] == "pass" for case in cases)
+
+    serialized = json.dumps(result).lower()
+    forbidden = (
+        "c:\\\\",
+        "users",
+        "program files",
+        "geoai-arcgis",
+        "benchmark_point_",
+    )
+    assert not any(token in serialized for token in forbidden)

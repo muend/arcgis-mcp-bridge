@@ -32,7 +32,7 @@ Technical write-up: https://dev.to/muend/building-a-secure-mcp-bridge-for-arcgis
 | | |
 |---|---|
 | Catalog | 100 tools · 10 verticals |
-| Tests | 85 unit tests · 85/85 passing · arcpy mocked |
+| Tests | 86 unit tests · 86/86 passing · arcpy mocked |
 | Real runtime evidence | [Reproducible ArcGIS Pro MCP smoke benchmark](benchmarks/) |
 | Static analysis | Ruff clean · Mypy `strict` clean |
 | Transport | JSON-RPC 2.0 over stdio |
@@ -173,7 +173,7 @@ ArcGIS Pro worker and a dedicated scratch GDB; it is not pooled with the mocked
 unit-test count or presented as validation of all 100 geoprocessing tools.
 
 **Scope, stated plainly:** the automated gate currently consists of
-**85 unit tests** spanning the PathGuard boundary, the Pydantic contracts,
+**86 unit tests** spanning the PathGuard boundary, the Pydantic contracts,
 the generic registry path-guard and registration invariants, the worker's
 error-boundary mapping, and `Settings` environment validation. It exercises
 the catalog's structural contracts and every security-critical seam — it does
@@ -228,7 +228,7 @@ make lint            # ruff check, mutates nothing
 make type-check      # mypy --strict over arcgis_mcp/
 make security-audit  # live registry inspection: path roles + confirm gates
 make verify-all      # lint + type-check + security-audit, one gate
-python -m pytest     # 85/85
+python -m pytest     # 86/86
 ```
 
 ---
