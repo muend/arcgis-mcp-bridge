@@ -1,0 +1,199 @@
+{
+  "schema_version": "1.0.0",
+  "benchmark": "arcgis-pro-mcp-smoke",
+  "condition": "write-safety",
+  "status": "pass",
+  "generated_at": "2026-07-20T09:51:51.518278+00:00",
+  "environment": {
+    "source_commit": "95ca0ccccbf976b87cbe4d044304f541e941bd4f",
+    "arcgis_mcp_bridge": "0.1.0.dev1+unknown.gc4415d885.d20260720",
+    "fastmcp": "3.4.2",
+    "arcgis_pro": "3.7",
+    "host_python": "3.11.15",
+    "worker_python": "3.13.13",
+    "platform": "Windows",
+    "expected_tool_count": 103,
+    "max_workers": 1
+  },
+  "safety": {
+    "allowed_root": "<ALLOWED_ROOT>",
+    "scratch_gdb": "<SCRATCH_GDB>",
+    "overwrite_requested": false,
+    "confirmed_delete_requested": false,
+    "created_artifact": "<SCRATCH_GDB>/<DATASET>"
+  },
+  "summary": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0,
+    "pass_rate": 1.0,
+    "wall_seconds": 44.952
+  },
+  "cases": [
+    {
+      "id": "discover-tool-surface",
+      "tool": "tools/list",
+      "expected": "103 tools and required names",
+      "status": "pass",
+      "wall_seconds": 0.006,
+      "evidence": {
+        "discovered_tool_count": 103,
+        "required_tools": [
+          "create_feature_class",
+          "delete_dataset",
+          "describe_dataset",
+          "get_feature_count",
+          "get_spatial_reference",
+          "health_check"
+        ],
+        "missing_required_tools": []
+      }
+    },
+    {
+      "id": "health-check",
+      "tool": "health_check",
+      "expected": "success",
+      "status": "pass",
+      "wall_seconds": 1.177,
+      "evidence": {
+        "is_error": false,
+        "payload": {
+          "server": "ok",
+          "worker_python": "3.13.13",
+          "worker_interpreter": "<ARCPY_PYTHON>",
+          "allowed_roots": [
+            "<ALLOWED_ROOT>"
+          ],
+          "scratch_gdb": "<SCRATCH_GDB>",
+          "tool_timeout_s": 180,
+          "max_workers": 1
+        },
+        "messages": [
+          "{\n  \"server\": \"ok\",\n  \"worker_python\": \"3.13.13\",\n  \"worker_interpreter\": \"<ARCPY_PYTHON>\",\n  \"allowed_roots\": [\n    \"<ALLOWED_ROOT>\"\n  ],\n  \"scratch_gdb\": \"<SCRATCH_GDB>\",\n  \"tool_timeout_s\": 180,\n  \"max_workers\": 1\n}"
+        ]
+      }
+    },
+    {
+      "id": "arcpy-spatial-reference",
+      "tool": "get_spatial_reference",
+      "expected": "success",
+      "status": "pass",
+      "wall_seconds": 9.77,
+      "evidence": {
+        "is_error": false,
+        "payload": {
+          "factory_code": 4326,
+          "name": "GCS_WGS_1984",
+          "type": "Geographic",
+          "linear_unit": null,
+          "angular_unit": "Degree",
+          "datum": "D_WGS_1984",
+          "tool": "get_spatial_reference",
+          "elapsed_seconds": 0.026
+        },
+        "messages": [
+          "{\n  \"factory_code\": 4326,\n  \"name\": \"GCS_WGS_1984\",\n  \"type\": \"Geographic\",\n  \"linear_unit\": null,\n  \"angular_unit\": \"Degree\",\n  \"datum\": \"D_WGS_1984\",\n  \"tool\": \"get_spatial_reference\",\n  \"elapsed_seconds\": 0.026\n}"
+        ]
+      }
+    },
+    {
+      "id": "outside-root-rejected",
+      "tool": "describe_dataset",
+      "expected": "error",
+      "status": "pass",
+      "wall_seconds": 0.006,
+      "evidence": {
+        "is_error": true,
+        "payload": null,
+        "messages": [
+          "Error executing tool describe_dataset: [validation] Path <OUTSIDE_ROOT_PROBE> is outside every allowed workspace root."
+        ]
+      }
+    },
+    {
+      "id": "create-empty-feature-class",
+      "tool": "create_feature_class",
+      "expected": "success",
+      "status": "pass",
+      "wall_seconds": 11.557,
+      "evidence": {
+        "is_error": false,
+        "payload": {
+          "created": "<SCRATCH_GDB>/<DATASET>",
+          "geometry_type": "POINT",
+          "wkid": 4326,
+          "tool": "create_feature_class",
+          "elapsed_seconds": 3.56
+        },
+        "messages": [
+          "{\n  \"created\": \"<SCRATCH_GDB>/<DATASET>\",\n  \"geometry_type\": \"POINT\",\n  \"wkid\": 4326,\n  \"tool\": \"create_feature_class\",\n  \"elapsed_seconds\": 3.56\n}"
+        ]
+      }
+    },
+    {
+      "id": "describe-created-dataset",
+      "tool": "describe_dataset",
+      "expected": "success",
+      "status": "pass",
+      "wall_seconds": 8.901,
+      "evidence": {
+        "is_error": false,
+        "payload": {
+          "name": "<DATASET>",
+          "data_type": "FeatureClass",
+          "shape_type": "Point",
+          "crs": "EPSG:4326",
+          "extent": {
+            "xmin": null,
+            "ymin": null,
+            "xmax": null,
+            "ymax": null
+          },
+          "tool": "describe_dataset",
+          "elapsed_seconds": 0.768
+        },
+        "messages": [
+          "{\n  \"name\": \"<DATASET>\",\n  \"data_type\": \"FeatureClass\",\n  \"shape_type\": \"Point\",\n  \"crs\": \"EPSG:4326\",\n  \"extent\": {\n    \"xmin\": null,\n    \"ymin\": null,\n    \"xmax\": null,\n    \"ymax\": null\n  },\n  \"tool\": \"describe_dataset\",\n  \"elapsed_seconds\": 0.768\n}"
+        ]
+      }
+    },
+    {
+      "id": "count-created-dataset",
+      "tool": "get_feature_count",
+      "expected": "success",
+      "status": "pass",
+      "wall_seconds": 8.885,
+      "evidence": {
+        "is_error": false,
+        "payload": {
+          "count": 0,
+          "tool": "get_feature_count",
+          "elapsed_seconds": 1.345
+        },
+        "messages": [
+          "{\n  \"count\": 0,\n  \"tool\": \"get_feature_count\",\n  \"elapsed_seconds\": 1.345\n}"
+        ]
+      }
+    },
+    {
+      "id": "unconfirmed-delete-rejected",
+      "tool": "delete_dataset",
+      "expected": "error",
+      "status": "pass",
+      "wall_seconds": 0.943,
+      "evidence": {
+        "is_error": true,
+        "payload": null,
+        "messages": [
+          "Error executing tool delete_dataset: [security] delete_dataset is destructive or mutates its input: set confirm=true to proceed."
+        ]
+      }
+    }
+  ],
+  "limitations": [
+    "Single-host integration evidence; not a portability benchmark.",
+    "ArcGIS extension-dependent tools are outside this smoke condition.",
+    "Case latency includes worker startup and is descriptive, not comparative.",
+    "The created empty feature class is retained; no confirmed delete is sent."
+  ]
+}
