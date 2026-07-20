@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/muend/arcgis-mcp-bridge/benchmarks/schema.json",
+  "title": "ArcGIS Pro MCP smoke benchmark result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "benchmark",
+    "condition",
+    "status",
+    "generated_at",
+    "environment",
+    "safety",
+    "summary",
+    "cases",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "benchmark": {"const": "arcgis-pro-mcp-smoke"},
+    "condition": {"enum": ["read-only", "write-safety"]},
+    "status": {"enum": ["pass", "fail"]},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_commit",
+        "arcgis_mcp_bridge",
+        "fastmcp",
+        "arcgis_pro",
+        "host_python",
+        "worker_python",
+        "platform",
+        "expected_tool_count",
+        "max_workers"
+      ],
+      "properties": {
+        "source_commit": {"type": "string", "pattern": "^[0-9a-f]{7,40}$"},
+        "arcgis_mcp_bridge": {"type": "string"},
+        "fastmcp": {"type": "string"},
+        "arcgis_pro": {"type": "string"},
+        "host_python": {"type": "string"},
+        "worker_python": {"type": ["string", "null"]},
+        "platform": {"type": "string"},
+        "expected_tool_count": {"type": "integer", "minimum": 1},
+        "max_workers": {"const": 1}
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowed_root",
+        "scratch_gdb",
+        "overwrite_requested",
+        "confirmed_delete_requested",
+        "created_artifact"
+      ],
+      "properties": {
+        "allowed_root": {"const": "<ALLOWED_ROOT>"},
+        "scratch_gdb": {"const": "<SCRATCH_GDB>"},
+        "overwrite_requested": {"const": false},
+        "confirmed_delete_requested": {"const": false},
+        "created_artifact": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "passed", "failed", "pass_rate", "wall_seconds"],
+      "properties": {
+        "total": {"type": "integer", "minimum": 1},
+        "passed": {"type": "integer", "minimum": 0},
+        "failed": {"type": "integer", "minimum": 0},
+        "pass_rate": {"type": "number", "minimum": 0, "maximum": 1},
+        "wall_seconds": {"type": "number", "minimum": 0}
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "tool",
+          "expected",
+          "status",
+          "wall_seconds",
+          "evidence"
+        ],
+        "properties": {
+          "id": {"type": "string"},
+          "tool": {"type": "string"},
+          "expected": {"type": "string"},
+          "status": {"enum": ["pass", "fail"]},
+          "wall_seconds": {"type": "number", "minimum": 0},
+          "evidence": {"type": "object"}
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string"}
+    }
+  }
+}
