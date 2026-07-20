@@ -59,18 +59,25 @@ def test_outside_probe_and_redaction_are_boundary_safe(tmp_path: Path) -> None:
     assert not probe.is_relative_to(config.allowed_root)
 
     secret = str(config.scratch_gdb / "FeatureA")
-    value = {"path": secret.upper(), "message": f"Rejected {probe}"}
+    escaped_secret = secret.replace("\\", "\\\\")
+    value = {
+        "path": secret.upper(),
+        "message": f'{{"created": "{escaped_secret}"}}; rejected {probe}',
+        "dataset": "benchmark_point_deadbeef",
+    }
     result = redact(
         value,
         [
             (secret, "<SCRATCH_GDB>/<DATASET>"),
             (str(probe), "<OUTSIDE_ROOT_PROBE>"),
+            ("benchmark_point_deadbeef", "<DATASET>"),
         ],
     )
     serialized = json.dumps(result)
     assert str(tmp_path).lower() not in serialized.lower()
     assert "<SCRATCH_GDB>/<DATASET>" in serialized
     assert "<OUTSIDE_ROOT_PROBE>" in serialized
+    assert "<DATASET>" in serialized
 
 
 def test_summarize_uses_unweighted_case_counts() -> None:

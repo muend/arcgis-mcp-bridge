@@ -106,12 +106,15 @@ def redact(value: Any, replacements: Sequence[tuple[str, str]]) -> Any:
         return value
 
     redacted = value
+    expanded: list[tuple[str, str]] = []
+    for source, replacement in replacements:
+        expanded.append((source, replacement))
+        if "\\" in source:
+            expanded.append((source.replace("\\", "\\\\"), replacement))
     for source, replacement in sorted(
-        replacements, key=lambda pair: len(pair[0]), reverse=True
+        expanded, key=lambda pair: len(pair[0]), reverse=True
     ):
-        redacted = re.sub(
-            re.escape(source), replacement, redacted, flags=re.IGNORECASE
-        )
+        redacted = re.sub(re.escape(source), replacement, redacted, flags=re.IGNORECASE)
     return redacted
 
 
@@ -198,6 +201,7 @@ async def execute(config: BenchmarkConfig) -> dict[str, Any]:
         (str(config.arcpy_python), "<ARCPY_PYTHON>"),
         (str(config.allowed_root), "<ALLOWED_ROOT>"),
         (str(outside_probe), "<OUTSIDE_ROOT_PROBE>"),
+        (dataset_name, "<DATASET>"),
     ]
 
     async with Client(mcp) as client:
