@@ -11,23 +11,46 @@
 
 # arcgis-mcp-bridge
 
-## 📦 Installation
+## Quick Start
 
-You can install the official release of `arcgis-mcp-bridge` directly from [PyPI (Python Package Index)](https://pypi.org/project/arcgis-mcp-bridge/):
+`arcgis-mcp-bridge` requires Windows, a licensed ArcGIS Pro installation, and
+Python 3.11 or newer for the bridge package.
 
-```bash
-# Traditional installation
-pip install arcgis-mcp-bridge
-# Modern, lightning-fast alternative
-uv pip install arcgis-mcp-bridge
+Install the bootstrap package using **one** package manager:
+
+```powershell
+# Option A — pip
+py -m pip install --upgrade arcgis-mcp-bridge
+
+# Option B — uv
+uv pip install --upgrade arcgis-mcp-bridge
 ```
+
+Then clone ArcGIS Pro's Python environment:
+
+```powershell
+# The final JSON report contains the target `python_exe` path.
+py -m arcgis_mcp.setup_env
+```
+
+If the installed console command is available on `PATH`,
+`arcgis-mcp-setup` is equivalent to `py -m arcgis_mcp.setup_env`.
+
+> **Important for Windows systems with multiple Python installations:** the
+> setup is not complete until `arcgis-mcp-bridge` is installed into the
+> reported `arcgis-mcp-env\python.exe`. Use that same interpreter for both the
+> MCP server `command` and `ARCPY_PYTHON_PATH`. This prevents worker failures
+> caused by packages or native extensions being loaded from another Python
+> environment.
+
+See **05 — Installation** for the complete setup and configuration.
 
 **100 declarative geoprocessing tools. Two isolated processes. One security floor.**
 
 A secure, local-first, asynchronous MCP server exposing ArcGIS Pro's ArcPy
 engine to Claude Desktop and other MCP hosts over stdio JSON-RPC.
 
-Technical write-up: https://dev.to/muend/building-a-secure-mcp-bridge-for-arcgis-pro-and-arcpy-511g
+Technical write-up: [Building a Secure MCP Bridge for ArcGIS Pro and ArcPy](https://dev.to/muend/building-a-secure-mcp-bridge-for-arcgis-pro-and-arcpy-511g)
 
 | | |
 |---|---|
@@ -45,7 +68,7 @@ Technical write-up: https://dev.to/muend/building-a-secure-mcp-bridge-for-arcgis
 | Feature | arcgis-mcp-bridge | geo2004/MCP-ArcGISPro | nicogis (C#/.NET) |
 |---|---|---|---|
 | Tools | **100** | ~15 | ~10 |
-| **Dependency Sync** | **Deterministic (`uv.lock`)** | Imperative (`requirements.txt`) | Native Nuget |
+| **Dependency Sync** | **Deterministic (`uv.lock`)** | Imperative (`requirements.txt`) | Native NuGet |
 | Transport | stdio JSON-RPC | file-based IPC | Named Pipes |
 | Security Architecture | Documented PathGuard sandbox | None specified / default host access | None specified / default host access |
 | arcpy Isolation | **Two-process architecture** | Single process execution | Add-In in-process execution |
@@ -111,8 +134,10 @@ the parent converts a non-zero exit into a structured error frame.
 **Declarative registry** (`arcgis_mcp/registry.py`).
 Each tool is one `ToolSpec(name, category, description, input_model,
 worker_fn, destructive)`. One generic proxy factory materializes all 100
-MCP endpoints in Layer A; one generic `run_tool` dispatcher serves them in
-Layer B. Adding tool #101 touches two files — never the runtime loops.
+catalog MCP endpoints in Layer A; one generic `run_tool` dispatcher serves
+them in Layer B. The catalog is exposed alongside three core endpoints:
+`health_check`, `list_layers`, and `execute_spatial_tool`. Adding catalog
+tool #101 touches two files — never the runtime loops.
 
 Every failure crossing the process boundary is classified:
 `validation` · `security` · `license` · `geoprocessing` (with the full
@@ -136,10 +161,11 @@ Every failure crossing the process boundary is classified:
 | 10 | `spatial_statistics` | 5 | Mean center, ellipse, kernel density, Gi* hot spots, Moran's I |
 | | **Total** | **100** | |
 
-Esri extension licenses (`Spatial`, `Network`) are checked out through one
-shared context manager and checked back in inside `finally` — a crash can
-never leave a seat locked. Unavailable licenses return a structured frame,
-not a process drop.
+Esri extension licenses (`Spatial`, `Network`) are managed through one shared
+context manager and checked back in via `finally` on normal Python exception
+paths. Worker-process isolation contains native failures to the current job,
+while unavailable licenses return a structured error frame instead of
+terminating the MCP server.
 
 ### Destructive Mutation Safety Floor
 
@@ -194,21 +220,21 @@ identically.
   valid reads/writes inside the sandbox pass; traversal (`..`-segments), UNC,
   relative, NUL-byte, reserved-device, over-length and out-of-root paths are
   rejected; write discipline (ArcGIS dataset-name rules, overwrite opt-in) is
-  enforced. 30 tests.
+  enforced.
 - `tests/test_contracts.py` — Pydantic contract enforcement: per-tool parameter
   specs, cross-field validators, `frozen` / `extra="forbid"`, and the
-  `ok`-xor-`error` invariant on the IPC envelope. 15 tests.
+  `ok`-xor-`error` invariant on the IPC envelope.
 - `tests/test_registry.py` & `tests/test_registry_guard.py` — registry stream
   integrity plus generic `apply_path_guard` enforcement and `register`
   invariants — every schema must be a `ToolInput` subclass, every `path_fields`
   entry must reference a valid role, duplicate names are rejected, and every
-  destructive spec must carry its `confirm` gate. 11 tests.
+  destructive spec must carry its `confirm` gate.
 - `tests/test_worker.py` — `process_frame` error-boundary mapping: every failure
   class (validation, security, license, geoprocessing, internal) maps to its
-  distinct `WorkerError.kind`. 10 tests.
+  distinct `WorkerError.kind`.
 - `tests/test_config.py` — `Settings.from_environment` validation: required
   variables, directory/file checks, integer bounds, and the fail-fast on a
-  missing scratch geodatabase. 15 tests.
+  missing scratch geodatabase.
 
 The side-effect import `import arcgis_mcp.tools` in the registry test is
 what populates the catalog; it is `# noqa`-pinned so no linter ever strips
@@ -266,113 +292,172 @@ and no subprocess is ever orchestrated for it.
 
 ## 05 — 📦 Installation
 
-Choose the onboarding pipeline that fits your operational objective:
+Choose the onboarding path that matches your use case.
 
-### Path A: Pure PyPI Installation (Recommended for Quick Deployments)
+### Prerequisites
 
-Ideal if you want to use the server out-of-the-box via Claude Desktop
-without cloning source files.
+- Windows with a licensed ArcGIS Pro installation
+- Python 3.11 or newer for `arcgis-mcp-bridge`
+- An existing writable directory for `ARCGIS_MCP_ALLOWED_ROOTS`
+- An existing file geodatabase for `ARCGIS_MCP_SCRATCH_GDB`, unless
+  `<first allowed root>\scratch.gdb` already exists
 
-```bash
-pip install arcgis-mcp-bridge
-# Execute the unified setup console command to clone your environment
-arcgis-mcp-setup
+### Path A: Pure PyPI Installation — Recommended for Windows Users
+
+This is the simplest and most reliable setup for Claude Desktop and other MCP
+hosts on Windows. The recommended configuration uses the same
+`arcgis-mcp-env\python.exe` for both Layer A (the MCP server) and Layer B
+(the ArcPy worker).
+
+Choose one bootstrap installation command:
+
+```powershell
+# Option A — pip
+py -m pip install --upgrade arcgis-mcp-bridge
+
+# Option B — uv
+uv pip install --upgrade arcgis-mcp-bridge
 ```
 
-### Path B: Git Clone & Deterministic Development (Recommended for GIS Contributors)
+Then clone ArcGIS Pro's Python environment:
 
-This project leverages **Astral `uv`** for light-speed, deterministic python environment management and synchronization.
+```powershell
+# The final JSON report contains the target `python_exe` path.
+py -m arcgis_mcp.setup_env
+```
 
-```bash
-# 1. Clone the repository
+If the installed console command is available on `PATH`,
+`arcgis-mcp-setup` is equivalent to `py -m arcgis_mcp.setup_env`.
+
+Copy the `python_exe` value from the JSON report and assign it below:
+
+```powershell
+$ArcGISMcpPython = "C:\...\envs\arcgis-mcp-env\python.exe"
+```
+
+Choose one installation command:
+
+```powershell
+# Standard installation
+& $ArcGISMcpPython -m pip install --upgrade arcgis-mcp-bridge
+
+# OR: include the optional OpenCV-based sketch-to-GIS extension
+& $ArcGISMcpPython -m pip install --upgrade "arcgis-mcp-bridge[vision]"
+```
+
+Do not run both commands; the second command already installs the standard
+package together with the `vision` extra.
+
+Use `$ArcGISMcpPython` as both the MCP server interpreter and
+`ARCPY_PYTHON_PATH`. This prevents `arcgis_mcp`, Pydantic, `pydantic-core`,
+and other native dependencies from being resolved from a different Python
+installation.
+
+### Path B: Git Clone & Deterministic Development — GIS Contributors
+
+This path keeps Layer A in a hermetic development environment while running
+ArcPy work in a separately cloned, licensed `arcgis-mcp-env` worker.
+
+```powershell
+# 1. Clone the repository.
 git clone https://github.com/muend/arcgis-mcp-bridge.git
 cd arcgis-mcp-bridge
 
-# 2. Create an ISOLATED dev venv pinned to the ArcGIS Pro 3.11 interpreter.
-#    Do NOT pass --system-site-packages: Layer A never imports arcpy (the
-#    worker runs in a SEPARATE interpreter resolved via ARCPY_PYTHON_PATH), so
-#    inheriting ArcGIS's full site-packages only leaks interpreter-incompatible
-#    third-party packages into the pytest/mypy gates. Keep this venv hermetic.
+# 2. Create the isolated development environment.
+#    Do not use --system-site-packages: Layer A must remain independent of arcpy.
 uv venv --python "C:\Program Files\ArcGIS\Pro\bin\Python\envs\arcgispro-py3\python.exe"
 
-# 3. Activate the virtual environment
-.venv\Scripts\activate
-
-# 4. Sync all frozen dependencies deterministically using uv
-#    --locked fails fast if uv.lock has drifted from pyproject.toml,
-#    guaranteeing the install matches the committed resolution exactly.
+# 3. Synchronize the committed dependency resolution.
 uv sync --locked
 ```
 
-> **Note:** To enable the hand-drawn sketch-to-GIS pipeline, install using the `[vision]` or `[dev,vision]` flag to pull the downstream dependencies `opencv-python-headless` and `numpy` into your environment:
-> `uv sync --locked --extra vision` or `uv sync --locked --all-extras`
+Choose one worker-provisioning command:
 
-Both paths share the same setup engine (`arcgis-mcp-setup` ≡
-`python -m arcgis_mcp.setup_env`): idempotent, accepts `--env-name`
-(default `arcgis-mcp-env`) and `--dry-run`; set `ARCGIS_CONDA_EXE` if conda
-is not on `PATH`. It emits a JSON report whose `python_exe` value becomes
-`ARCPY_PYTHON_PATH`.
+```powershell
+# Standard worker
+uv run python -m arcgis_mcp.setup_env --install-runtime-deps --project-root .
 
-**Worker integrity — `ARCPY_PYTHON_PATH` must resolve the package stack.**
-Layer B is launched as `-m arcgis_mcp.worker`, so its interpreter must
-resolve the worker's runtime requirements — Pydantic above all (the IPC
-contracts are re-validated inside Layer B). The pristine `arcgispro-py3`
-environment does not ship Pydantic and is read-only, so it cannot acquire
-it. **Recommended configuration: point both the server `command` and
-`ARCPY_PYTHON_PATH` at the same cloned `arcgis-mcp-env`** — one
-environment, one dependency set, no context drift, no missing-package
-failures at job time.
+# OR: worker with the optional OpenCV-based sketch-to-GIS extension
+uv run python -m arcgis_mcp.setup_env --with-vision --project-root .
+```
 
-Install the full stack into that environment
-(`pip install "pydantic>=2.5" mcp` and, for the vision pipeline,
-`pip install opencv-python-headless numpy`).
+`--with-vision` implies runtime-dependency installation, so the two commands
+should not be run consecutively.
+
+The setup command is idempotent, accepts `--env-name` (default:
+`arcgis-mcp-env`) and `--dry-run`, and emits a JSON report. Set
+`ARCGIS_CONDA_EXE` if ArcGIS Pro's `conda.exe` is not available on `PATH`.
+
+### Worker Interpreter Integrity
+
+Layer B is launched as:
+
+```text
+ARCPY_PYTHON_PATH -m arcgis_mcp.worker
+```
+
+The interpreter referenced by `ARCPY_PYTHON_PATH` must be able to import the
+complete worker stack:
+
+```text
+arcgis_mcp
+pydantic
+pydantic_core
+arcpy
+```
+
+For a first-time Windows installation, use the same
+`arcgis-mcp-env\python.exe` for the server `command` and
+`ARCPY_PYTHON_PATH`. Separate server and worker environments remain supported
+for development, but the worker interpreter must contain its own compatible
+installation of `arcgis-mcp-bridge` and all runtime dependencies.
+
+Run this preflight check before configuring the MCP host:
+
+```powershell
+$ArcGISMcpPython = "C:\...\envs\arcgis-mcp-env\python.exe"
+
+& $ArcGISMcpPython -c "import sys, arcgis_mcp, pydantic, pydantic_core; print(sys.executable); print('Bridge runtime OK')"
+& $ArcGISMcpPython -c "import arcpy; print('ArcPy', arcpy.GetInstallInfo().get('Version'))"
+```
+
+### Environment Variables
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `ARCPY_PYTHON_PATH` | yes | Layer B interpreter: licensed arcpy **and** Pydantic resolvable (use `arcgis-mcp-env`) |
-| `ARCGIS_MCP_ALLOWED_ROOTS` | no | `;`-separated PathGuard boundary roots; defaults to `~/Documents/ArcGIS/Projects` if unset |
-| `ARCGIS_MCP_SCRATCH_GDB` | no | Default output workspace; must already exist (startup fails fast if missing) |
-| `ARCGIS_MCP_LOG_FILE` / `_LOG_LEVEL` / `_TOOL_TIMEOUT` | no | Logging + per-job ceiling |
-| `ARCGIS_MCP_MAX_WORKERS` | no | Concurrent arcpy worker ceiling (default 2) — protects license seats and RAM |
+| `ARCPY_PYTHON_PATH` | yes | Absolute path to the licensed worker `python.exe`; it must resolve `arcgis_mcp`, Pydantic/`pydantic_core`, and ArcPy |
+| `ARCGIS_MCP_ALLOWED_ROOTS` | no | Windows `;`-separated PathGuard boundary roots; defaults to `~/Documents/ArcGIS/Projects` |
+| `ARCGIS_MCP_SCRATCH_GDB` | no | Default output workspace; if omitted, defaults to `<first allowed root>\scratch.gdb`; the GDB must already exist |
+| `ARCGIS_MCP_LOG_FILE` | no | Optional rotating log-file path |
+| `ARCGIS_MCP_LOG_LEVEL` | no | `DEBUG`, `INFO`, `WARNING`, or `ERROR`; default `INFO` |
+| `ARCGIS_MCP_TOOL_TIMEOUT` | no | Positive per-job timeout in seconds; default `600` |
+| `ARCGIS_MCP_MAX_WORKERS` | no | Concurrent ArcPy worker ceiling; default `2`, protecting license seats and RAM |
 
 ### Claude Desktop Configuration
 
-Pick the block that matches how you installed the server.
-(`ARCPY_PYTHON_PATH` is **required** in both variants — it is the licensed
-worker interpreter reported by the setup command's JSON output.)
+`ARCPY_PYTHON_PATH` is required in every configuration and must point to the
+licensed interpreter reported by the setup command.
 
-##### Option 1: Global/PyPI Installation Config
+Replace every placeholder path below with an existing path on your machine.
+The scratch geodatabase must already exist.
 
-```json
-{
-  "mcpServers": {
-    "arcgis-mcp-bridge": {
-      "command": "arcgis-mcp-server",
-      "env": {
-        "ARCPY_PYTHON_PATH": "C:\\...\\envs\\arcgis-mcp-env\\python.exe",
-        "ARCGIS_MCP_ALLOWED_ROOTS": "C:\\GIS\\Data;C:\\Workspace",
-        "ARCGIS_MCP_MAX_WORKERS": "2"
-      }
-    }
-  }
-}
-```
+#### Option 1: Unified PyPI Environment — Recommended on Windows
 
-##### Option 2: Local Git Clone Config
+Use the same interpreter for the MCP server and ArcPy worker:
 
 ```json
 {
   "mcpServers": {
     "arcgis-mcp-bridge": {
-      "command": "C:\\...\\envs\\arcgis-mcp-env\\Scripts\\python.exe",
+      "command": "C:\\...\\envs\\arcgis-mcp-env\\python.exe",
       "args": [
         "-m",
         "arcgis_mcp.server"
       ],
       "env": {
-        "PYTHONPATH": "C:\\path\\to\\arcgis-mcp-bridge",
         "ARCPY_PYTHON_PATH": "C:\\...\\envs\\arcgis-mcp-env\\python.exe",
         "ARCGIS_MCP_ALLOWED_ROOTS": "C:\\GIS\\Data;C:\\Workspace",
+        "ARCGIS_MCP_SCRATCH_GDB": "C:\\GIS\\Data\\scratch.gdb",
         "ARCGIS_MCP_MAX_WORKERS": "2"
       }
     }
@@ -380,27 +465,163 @@ worker interpreter reported by the setup command's JSON output.)
 }
 ```
 
-After restart, call `health_check` first — it proves the full
-server→worker pipeline without importing arcpy.
+The `command` and `ARCPY_PYTHON_PATH` values should be identical in this
+configuration. Use the `python_exe` value returned by the setup command.
+
+#### Option 2: Local Git Development Environment
+
+Use the repository `.venv` for Layer A and the provisioned
+`arcgis-mcp-env` for Layer B:
+
+```json
+{
+  "mcpServers": {
+    "arcgis-mcp-bridge": {
+      "command": "C:\\path\\to\\arcgis-mcp-bridge\\.venv\\Scripts\\python.exe",
+      "args": [
+        "-m",
+        "arcgis_mcp.server"
+      ],
+      "env": {
+        "ARCPY_PYTHON_PATH": "C:\\...\\envs\\arcgis-mcp-env\\python.exe",
+        "ARCGIS_MCP_ALLOWED_ROOTS": "C:\\GIS\\Data;C:\\Workspace",
+        "ARCGIS_MCP_SCRATCH_GDB": "C:\\GIS\\Data\\scratch.gdb",
+        "ARCGIS_MCP_MAX_WORKERS": "2"
+      }
+    }
+  }
+}
+```
+
+This split-environment configuration assumes that the worker was provisioned
+from the repository with one of the Path B setup commands above. `PYTHONPATH`
+is not required when `uv sync --locked` has installed the project into the
+repository `.venv`.
+
+A globally resolved `arcgis-mcp-server` command can work, but it creates a
+split-environment deployment. It is not recommended for first-time Windows
+setup unless the worker environment has been provisioned and verified
+separately.
+
+After restarting the MCP host, call `health_check` first. It verifies the
+server-to-worker IPC path and reports the selected worker interpreter without
+importing ArcPy. Then run a read-only ArcGIS tool or the ArcPy preflight command
+above to validate the licensed runtime.
 
 ---
 
-## 06 — Compatibility
+## 06 — Troubleshooting
 
-| ArcGIS Pro | Python (arcgispro-py3) | Status |
+### `Worker process exited with code 1`
+
+If the MCP server starts but every ArcGIS tool fails, inspect the server log for
+the worker traceback. Common environment-related causes include:
+
+```text
+ModuleNotFoundError: No module named 'arcgis_mcp'
+ModuleNotFoundError: No module named 'pydantic_core._pydantic_core'
+```
+
+These errors usually mean that the worker is using a different Python
+installation, the bridge was not installed into the worker interpreter, or the
+worker contains an incomplete or incompatible Pydantic installation. The recommended fix is the unified-environment configuration documented above.
+
+For the recommended unified configuration, confirm that both values are
+identical:
+
+```json
+"command": "C:\\...\\envs\\arcgis-mcp-env\\python.exe"
+```
+
+```json
+"ARCPY_PYTHON_PATH": "C:\\...\\envs\\arcgis-mcp-env\\python.exe"
+```
+
+Install or update the bridge inside that exact interpreter:
+
+```powershell
+$ArcGISMcpPython = "C:\...\envs\arcgis-mcp-env\python.exe"
+& $ArcGISMcpPython -m pip install --upgrade arcgis-mcp-bridge
+```
+
+Verify the selected executable and bridge dependencies:
+
+```powershell
+& $ArcGISMcpPython -c "import sys, arcgis_mcp, pydantic, pydantic_core; print(sys.executable); print('Bridge runtime OK')"
+```
+
+Then verify ArcPy separately:
+
+```powershell
+& $ArcGISMcpPython -c "import arcpy; print('ArcPy', arcpy.GetInstallInfo().get('Version'))"
+```
+
+If the bridge verification still fails specifically inside `pydantic_core`,
+reinstall Pydantic in the same environment so pip restores the matching
+compiled dependency:
+
+```powershell
+& $ArcGISMcpPython -m pip install --upgrade --force-reinstall --no-cache-dir "pydantic>=2.5,<3"
+```
+
+Restart the MCP host completely after changing its Python environment or
+configuration.
+
+### `ARCPY_PYTHON_PATH` points to the wrong executable
+
+A Windows conda environment normally places its interpreter at the environment
+root:
+
+```text
+C:\...\envs\arcgis-mcp-env\python.exe
+```
+
+Do not use another global Python installation or a nonexistent
+`arcgis-mcp-env\Scripts\python.exe` path.
+
+### Scratch geodatabase startup error
+
+The default scratch workspace is:
+
+```text
+<first allowed root>\scratch.gdb
+```
+
+It must already exist. Create it in ArcGIS Pro or set
+`ARCGIS_MCP_SCRATCH_GDB` to an existing file geodatabase before restarting the
+MCP host.
+
+### `health_check` succeeds but ArcGIS tools still fail
+
+`health_check` intentionally verifies the server-to-worker process boundary
+without importing ArcPy. A successful result confirms IPC and interpreter
+selection, but it does not prove that ArcPy or an optional Esri extension
+license can be loaded.
+
+Run the ArcPy preflight command above and inspect the structured worker error
+for `license`, `geoprocessing`, or `internal` details.
+
+---
+
+## 07 — Compatibility
+
+| ArcGIS Pro | Bundled Python | Status |
 |---|---|---|
-| 3.1 | 3.9 | ✅ Tested |
-| 3.2 | 3.9 | ✅ Tested |
-| 3.3 | 3.11 | ✅ Tested — reference platform |
-| 3.4 | 3.11 | ⚠ Community-reported, not CI-verified |
+| 3.3 | 3.11 | ✅ Reference platform |
+| 3.4 | 3.11 | ⚠ Community-reported; verify with the preflight checks |
+| 3.1–3.2 | 3.9 | ❌ Unsupported by the current `Python >=3.11` package requirement |
 
-**Windows only.** ArcPy is Windows-exclusive. Layer A runs on any
-platform for development (MagicMock injection), but Layer B requires
-a licensed ArcGIS Pro installation on Windows.
+**Windows only.** ArcPy requires a licensed ArcGIS Pro installation on Windows.
+Layer A can run on other platforms for development and mocked CI, but Layer B
+requires ArcGIS Pro.
+
+The bridge package itself requires Python 3.11 or newer. ArcGIS Pro releases
+whose cloned Python environment is older than 3.11 cannot run the current
+worker package.
 
 ---
 
-## 07 — License
+## 08 — License
 
 Apache License 2.0. See [LICENSE](LICENSE).
 
