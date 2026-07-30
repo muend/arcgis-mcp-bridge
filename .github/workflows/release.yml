@@ -1,90 +1,402 @@
 name: release
 
-# On a version tag (e.g. v0.6.1): build, publish to PyPI using OIDC, and cut a GitHub Release.
-#
-# DESIGN — why this workflow can never fail with a "hash mismatch" again:
-#   PyPI is an IMMUTABLE index: a filename, once published, can never be
-#   overwritten. The old failure happened because the version was hardcoded in
-#   pyproject.toml, so re-tagging/re-running v0.6.0 rebuilt an ALREADY-published
-#   version and `uv publish` correctly refused (local sha256 != remote sha256).
-#
-#   Two structural guards remove the entire failure class:
-#     1. setuptools-scm derives the version from THIS tag (single source of
-#        truth) — you physically cannot build a version that isn't a fresh tag.
-#     2. The "check PyPI" step below makes publish IDEMPOTENT: if the version is
-#        already on the index, publishing is skipped (not failed), so re-running
-#        a tag still succeeds and the GitHub Release step still runs.
-#
-# PyPI authentication uses Trusted Publishers (OIDC), not static tokens.
-# One-time setup required:
-#   1. GitHub repo -> Settings -> Environments -> create environment 'pypi'.
-#   2. PyPI -> project -> Publishing -> Add a GitHub Actions publisher:
-#        Owner: muend | Repository: arcgis-mcp-bridge
-#        Workflow: release.yml | Environment: pypi
-
+# A real stable SemVer tag triggers the complete release pipeline:
+# build -> PyPI -> MCP Registry -> GitHub Release.
 on:
   push:
     tags:
-      - "v*"
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release:
-    name: Build, publish to PyPI, and create the GitHub Release
+    name: Build, publish to PyPI and MCP Registry, and create GitHub Release
     runs-on: ubuntu-latest
-
-    # Connects this job to the GitHub Environment for OIDC claim validation.
     environment: pypi
 
     permissions:
-      id-token: write  # Critical: lets the runner request the OIDC JWT for PyPI.
-      contents: write  # Required for softprops/action-gh-release to create releases.
+      id-token: write
+      contents: write
+
+    env:
+      MCP_SERVER_NAME: io.github.muend/arcgis-mcp-bridge
+      MCP_PUBLISHER_VERSION: "1.7.9"
+      MCP_PUBLISHER_SHA256: "ab128162b0616090b47cf245afe0a23f3ef08936fdce19074f5ba0a4469281ac"
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
-          # setuptools-scm needs full history + tags to compute the version.
           fetch-depth: 0
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           python-version: "3.12"
+
+      - name: Validate tag and MCP metadata
+        id: metadata
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$TAG_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release tag must use exact stable SemVer, for example v0.6.7."
+            exit 1
+          fi
+
+          VERSION="${TAG_NAME#v}"
+
+          VERSION="$VERSION" python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          version = os.environ["VERSION"]
+          data = json.loads(Path("server.json").read_text(encoding="utf-8"))
+          package = data["packages"][0]
+          description = data.get("description", "")
+          readme = Path("README.md").read_text(encoding="utf-8")
+
+          errors = []
+
+          if data.get("name") != "io.github.muend/arcgis-mcp-bridge":
+              errors.append("Unexpected MCP server name.")
+
+          if data.get("version") != version:
+              errors.append(
+                  f"server.json version {data.get('version')!r} "
+                  f"does not match tag version {version!r}."
+              )
+
+          if package.get("version") != version:
+              errors.append(
+                  f"Package version {package.get('version')!r} "
+                  f"does not match tag version {version!r}."
+              )
+
+          if package.get("registryType") != "pypi":
+              errors.append("Package registryType must be 'pypi'.")
+
+          if package.get("identifier") != "arcgis-mcp-bridge":
+              errors.append("Unexpected PyPI package identifier.")
+
+          if package.get("runtimeHint") != "uvx":
+              errors.append("Package runtimeHint must be 'uvx'.")
+
+          if not description:
+              errors.append("Description must not be empty.")
+
+          if len(description) > 100:
+              errors.append(
+                  f"Description is {len(description)} characters; "
+                  "the Registry limit is 100."
+              )
+
+          marker = "<!-- mcp-name: io.github.muend/arcgis-mcp-bridge -->"
+          if marker not in readme:
+              errors.append("README MCP ownership marker is missing.")
+
+          if errors:
+              for error in errors:
+                  print(f"::error::{error}")
+              raise SystemExit(1)
+
+          print(f"Validated MCP metadata for version {version}.")
+          print(f"Description length: {len(description)}")
+          PY
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Build source distribution and wheel
         run: uv build
 
-      - name: Determine built version
-        id: ver
+      - name: Verify built version
+        env:
+          VERSION: ${{ steps.metadata.outputs.version }}
         run: |
-          f=$(basename dist/*.tar.gz)
-          v=${f#arcgis_mcp_bridge-}
-          v=${v%.tar.gz}
-          echo "version=$v" >> "$GITHUB_OUTPUT"
-          echo "Built version: $v"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
 
-      - name: Check whether this version is already on PyPI
-        id: exists
+          version = os.environ["VERSION"]
+          archives = list(Path("dist").glob("arcgis_mcp_bridge-*.tar.gz"))
+
+          if len(archives) != 1:
+              raise SystemExit(
+                  f"Expected exactly one source archive, found {len(archives)}."
+              )
+
+          filename = archives[0].name
+          built_version = filename.removeprefix(
+              "arcgis_mcp_bridge-"
+          ).removesuffix(".tar.gz")
+
+          if built_version != version:
+              raise SystemExit(
+                  f"Built version {built_version!r} "
+                  f"does not match release version {version!r}."
+              )
+
+          print(f"Built version verified: {built_version}")
+          PY
+
+      - name: Check whether version is already on PyPI
+        id: pypi
+        env:
+          VERSION: ${{ steps.metadata.outputs.version }}
         run: |
-          v="${{ steps.ver.outputs.version }}"
-          code=$(curl -s -o /dev/null -w "%{http_code}" \
-            "https://pypi.org/pypi/arcgis-mcp-bridge/${v}/json")
-          if [ "$code" = "200" ]; then
+          set -euo pipefail
+
+          code="$(
+            curl --silent --show-error \
+              --output /dev/null \
+              --write-out "%{http_code}" \
+              "https://pypi.org/pypi/arcgis-mcp-bridge/${VERSION}/json"
+          )"
+
+          if [[ "$code" == "200" ]]; then
             echo "published=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::Version ${v} is already on PyPI — skipping publish (idempotent re-run)."
+            echo "Version ${VERSION} is already on PyPI; skipping upload."
           else
             echo "published=false" >> "$GITHUB_OUTPUT"
-            echo "Version ${v} not on PyPI (HTTP ${code}) — will publish."
+            echo "Version ${VERSION} is not yet on PyPI."
           fi
 
       - name: Publish package to PyPI via Trusted Publishing
-        if: steps.exists.outputs.published == 'false'
-        # OIDC fulfils auth automatically because id-token: write is granted.
-        # --check-url is a second safety net against a misconfigured index.
+        if: steps.pypi.outputs.published == 'false'
         run: uv publish --check-url https://pypi.org/simple/
 
+      - name: Wait for PyPI package propagation
+        env:
+          VERSION: ${{ steps.metadata.outputs.version }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.request
+
+          version = os.environ["VERSION"]
+          version_url = (
+              "https://pypi.org/pypi/"
+              f"arcgis-mcp-bridge/{version}/json"
+          )
+          simple_url = (
+              "https://pypi.org/simple/arcgis-mcp-bridge/"
+          )
+          expected_wheel = (
+              f"arcgis_mcp_bridge-{version}-py3-none-any.whl"
+          )
+
+          for attempt in range(1, 21):
+              try:
+                  with urllib.request.urlopen(
+                      version_url,
+                      timeout=20,
+                  ) as response:
+                      version_data = json.load(response)
+
+                  request = urllib.request.Request(
+                      simple_url,
+                      headers={
+                          "Accept": (
+                              "application/vnd.pypi.simple.v1+json"
+                          )
+                      },
+                  )
+
+                  with urllib.request.urlopen(
+                      request,
+                      timeout=20,
+                  ) as response:
+                      simple_data = json.load(response)
+
+                  filenames = {
+                      item["filename"]
+                      for item in simple_data.get("files", [])
+                  }
+
+                  if (
+                      version_data["info"]["version"] == version
+                      and expected_wheel in filenames
+                  ):
+                      print(
+                          f"PyPI version {version} and its wheel "
+                          "are available."
+                      )
+                      break
+
+              except Exception as exc:
+                  print(
+                      f"Attempt {attempt}/20: "
+                      f"PyPI is not ready yet: {exc}"
+                  )
+
+              if attempt == 20:
+                  raise SystemExit(
+                      f"PyPI version {version} did not propagate "
+                      "within the allowed time."
+                  )
+
+              time.sleep(15)
+          PY
+
+      - name: Check whether MCP Registry version already exists
+        id: registry
+        env:
+          VERSION: ${{ steps.metadata.outputs.version }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.parse
+          import urllib.request
+
+          name = os.environ["MCP_SERVER_NAME"]
+          version = os.environ["VERSION"]
+          query = urllib.parse.urlencode({"search": name})
+          url = (
+              "https://registry.modelcontextprotocol.io/"
+              f"v0.1/servers?{query}"
+          )
+
+          with urllib.request.urlopen(url, timeout=30) as response:
+              data = json.load(response)
+
+          exists = any(
+              item.get("server", {}).get("name") == name
+              and item.get("server", {}).get("version") == version
+              for item in data.get("servers", [])
+          )
+
+          with open(
+              os.environ["GITHUB_OUTPUT"],
+              "a",
+              encoding="utf-8",
+          ) as output:
+              output.write(
+                  f"exists={'true' if exists else 'false'}\n"
+              )
+
+          print(
+              f"MCP Registry version {version} "
+              f"already exists: {exists}"
+          )
+          PY
+
+      - name: Install verified mcp-publisher
+        if: steps.registry.outputs.exists == 'false'
+        run: |
+          set -euo pipefail
+
+          archive="mcp-publisher_linux_amd64.tar.gz"
+
+          curl --fail --location \
+            --retry 5 \
+            --retry-all-errors \
+            --output "$archive" \
+            "https://github.com/modelcontextprotocol/registry/releases/download/v${MCP_PUBLISHER_VERSION}/${archive}"
+
+          echo "${MCP_PUBLISHER_SHA256}  ${archive}" |
+            sha256sum --check -
+
+          tar -xzf "$archive" mcp-publisher
+          chmod +x mcp-publisher
+          ./mcp-publisher --help > /dev/null
+
+      - name: Authenticate and publish to MCP Registry
+        if: steps.registry.outputs.exists == 'false'
+        run: |
+          set -euo pipefail
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish
+
+      - name: Verify MCP Registry publication
+        env:
+          VERSION: ${{ steps.metadata.outputs.version }}
+          ALREADY_EXISTED: ${{ steps.registry.outputs.exists }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.parse
+          import urllib.request
+
+          name = os.environ["MCP_SERVER_NAME"]
+          version = os.environ["VERSION"]
+          already_existed = os.environ["ALREADY_EXISTED"] == "true"
+          query = urllib.parse.urlencode({"search": name})
+          url = (
+              "https://registry.modelcontextprotocol.io/"
+              f"v0.1/servers?{query}"
+          )
+
+          for attempt in range(1, 31):
+              try:
+                  with urllib.request.urlopen(
+                      url,
+                      timeout=30,
+                  ) as response:
+                      data = json.load(response)
+
+                  record = next(
+                      (
+                          item
+                          for item in data.get("servers", [])
+                          if (
+                              item.get("server", {}).get("name")
+                              == name
+                              and item.get("server", {}).get(
+                                  "version"
+                              )
+                              == version
+                          )
+                      ),
+                      None,
+                  )
+
+                  if record is not None:
+                      metadata = record.get("_meta", {}).get(
+                          "io.modelcontextprotocol.registry/official",
+                          {},
+                      )
+
+                      is_active = metadata.get("status") == "active"
+                      is_latest = metadata.get("isLatest") is True
+
+                      if is_active and (already_existed or is_latest):
+                          print(
+                              f"MCP Registry version {version} is active; "
+                              f"isLatest={is_latest}."
+                          )
+                          break
+
+              except Exception as exc:
+                  print(
+                      f"Attempt {attempt}/30: "
+                      f"Registry verification failed: {exc}"
+                  )
+
+              if attempt == 30:
+                  raise SystemExit(
+                      f"MCP Registry version {version} "
+                      "was not verified."
+                  )
+
+              time.sleep(10)
+          PY
+
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
-          files: dist/*
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+          fail_on_unmatched_files: true
