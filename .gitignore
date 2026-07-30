@@ -69,7 +69,3 @@ Desktop.ini
 # uv lock file must be tracked (overrides *.lock rule)
 !uv.lock
 LAUNCH_KIT.md
-# Local MCP Registry / publisher files
-.mcpregistry_*_token
-mcp-publisher.exe
-*.mcpb

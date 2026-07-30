@@ -49,14 +49,8 @@ class ExtractSketchSchema(ToolInput):
     xmax: float = Field(..., description="East edge of the layout extent.")
     ymax: float = Field(..., description="North edge of the layout extent.")
 
-    feature_type: SketchFeatureType = Field(
-        default="Polygon",
-        description="Geometry to extract from the sketch: Polygon or Polyline.",
-    )
-    ink_color: InkColor = Field(
-        default="Red",
-        description="Ink color of the hand-drawn strokes to segment: Red, Black, or Blue.",
-    )
+    feature_type: SketchFeatureType = "Polygon"
+    ink_color: InkColor = "Red"
 
     # Tunables with conservative defaults (documented in the tool surface).
     min_contour_area_px: float = Field(
