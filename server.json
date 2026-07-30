@@ -2,18 +2,18 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.muend/arcgis-mcp-bridge",
   "title": "ArcGIS MCP Bridge",
-  "description": "A secure, local-first MCP server exposing ArcGIS Pro's ArcPy engine on Windows. Requires a licensed ArcGIS Pro installation and a provisioned ArcGIS Python environment.",
+  "description": "Secure local-first MCP server for licensed ArcGIS Pro and ArcPy on Windows.",
   "repository": {
     "url": "https://github.com/muend/arcgis-mcp-bridge",
     "source": "github"
   },
-  "version": "0.6.5",
+  "version": "0.6.6",
   "packages": [
     {
       "registryType": "pypi",
       "registryBaseUrl": "https://pypi.org",
       "identifier": "arcgis-mcp-bridge",
-      "version": "0.6.5",
+      "version": "0.6.6",
       "runtimeHint": "uvx",
       "transport": {
         "type": "stdio"

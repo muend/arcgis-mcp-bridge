@@ -3,6 +3,16 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 Versioning: [Semantic Versioning](https://semver.org/)
 
+## [0.6.6] - 2026-07-31
+
+### Fixed
+
+- Shortened the Official MCP Registry description to satisfy its
+  100-character validation limit.
+- Aligned the Registry server and PyPI package metadata at version `0.6.6`.
+
+[0.6.6]: https://github.com/muend/arcgis-mcp-bridge/compare/v0.6.5...v0.6.6
+
 ## [0.6.5] - 2026-07-30
 
 ### Added
