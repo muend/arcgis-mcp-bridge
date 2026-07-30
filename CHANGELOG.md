@@ -3,6 +3,66 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 Versioning: [Semantic Versioning](https://semver.org/)
 
+## [0.6.5] - 2026-07-30
+
+### Added
+
+- Added the `arcgis-mcp-bridge` console entry point so PyPI and MCP Registry
+  clients can launch the stdio server using the package name.
+
+### Changed
+
+- Updated `server.json` for Official MCP Registry publication.
+- Added the `uvx` runtime hint and explicit PyPI registry metadata.
+- Clarified Windows and licensed ArcGIS Pro runtime requirements.
+- Marked the ArcGIS interpreter and scratch geodatabase inputs as filesystem
+  paths.
+
+[0.6.5]: https://github.com/muend/arcgis-mcp-bridge/compare/v0.6.4...v0.6.5
+
+## [0.6.4] - 2026-07-30
+
+### Added
+
+- Added the reproducible ArcGIS Pro runtime benchmark and its verified
+  ArcGIS Pro 3.7 Windows result.
+- Added benchmark schema validation and automated benchmark tests.
+- Added MCP distribution assets, generated server-card metadata, project
+  identity assets, and GitHub Sponsors configuration.
+
+### Changed
+
+- Updated the locked MCP dependency from `1.27.2` to `1.28.1`.
+- Reworked the Windows installation documentation for systems with multiple
+  Python installations.
+- Made the unified `arcgis-mcp-env` interpreter the recommended configuration
+  for the MCP server and ArcPy worker.
+
+### Fixed
+
+- Added troubleshooting guidance for
+  `ModuleNotFoundError: No module named 'pydantic_core._pydantic_core'`.
+- Corrected Windows interpreter examples and Claude Desktop configuration
+  guidance.
+
+[0.6.4]: https://github.com/muend/arcgis-mcp-bridge/compare/v0.6.3...v0.6.4
+
+## [0.6.3] - 2026-07-04
+
+### Added
+
+- Added `server.json` metadata for Official MCP Registry publication.
+- Added `glama.json` metadata for MCP catalog discovery.
+- Added container files for reproducible package and metadata validation.
+
+### Changed
+
+- Expanded MCP tool and input descriptions with GIS-specific usage,
+  measurement, output, safety, and overwrite guidance.
+- Updated registry metadata to release `0.6.3`.
+
+[0.6.3]: https://github.com/muend/arcgis-mcp-bridge/compare/v0.6.2...v0.6.3
+
 ## [0.6.2] — 2026-07-01
 
 ### Added

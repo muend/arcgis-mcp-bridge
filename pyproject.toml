@@ -50,6 +50,7 @@ vision = ["opencv-python-headless", "numpy"]
 dev = ["ruff", "mypy", "pytest", "pytest-cov"]
 
 [project.scripts]
+arcgis-mcp-bridge = "arcgis_mcp.server:main"
 arcgis-mcp-server = "arcgis_mcp.server:main"
 arcgis-mcp-setup = "arcgis_mcp.setup_env:main"
 
