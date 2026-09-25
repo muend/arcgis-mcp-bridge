@@ -601,6 +601,24 @@ license can be loaded.
 Run the ArcPy preflight command above and inspect the structured worker error
 for `license`, `geoprocessing`, or `internal` details.
 
+### The first ArcGIS tool call times out
+
+Every tool call starts a fresh worker that imports ArcPy. That usually takes
+10–30 s, but a cold import has been measured at ~230 s on a machine where
+real-time antivirus scans ArcGIS Pro's native DLLs; later calls are fast once
+the DLLs are cached. Keep `ARCGIS_MCP_TOOL_TIMEOUT` at its `600` s default (or
+higher) on such machines. Whether to exclude the ArcGIS Pro installation from
+real-time scanning is a security decision for the machine's administrator.
+
+### `import_from_geojson` and geometry types
+
+ArcPy's `JSONToFeatures` reads a `.geojson` file as polygons unless told
+otherwise and silently drops other geometries. The bridge therefore detects the
+geometry type from the file and passes it explicitly. A file that mixes points,
+lines, and polygons is rejected with a count per type; import it once per type
+with `geometry_type` set. An import that yields zero features fails loudly
+instead of returning an empty feature class.
+
 ---
 
 ## 07 — Compatibility
@@ -609,6 +627,8 @@ for `license`, `geoprocessing`, or `internal` details.
 |---|---|---|
 | 3.3 | 3.11 | ✅ Reference platform |
 | 3.4 | 3.11 | ⚠ Community-reported; verify with the preflight checks |
+| 3.6 | 3.13 | ✅ Community-verified: full test suite and runtime benchmark ([#24](https://github.com/muend/arcgis-mcp-bridge/issues/24)) |
+| 3.7 | 3.13 | ✅ Maintainer-verified runtime benchmark ([result](benchmarks/results/arcgis-pro-3.7-windows-2026-07-20.json)) |
 | 3.1–3.2 | 3.9 | ❌ Unsupported by the current `Python >=3.11` package requirement |
 
 **Windows only.** ArcPy requires a licensed ArcGIS Pro installation on Windows.

@@ -5,15 +5,22 @@ failure class must map to a distinct WorkerError.kind. Most branches never
 reach arcpy; the arcpy-touching ones use the session MagicMock (conftest) with
 `ExecuteError` swapped for a real exception class so the handler's
 `except arcpy.ExecuteError` clause is well-formed.
+
+main() is exercised in a real subprocess to prove that native writes to fd 1
+never reach the protocol stream.
 """
 
+import os
+import subprocess
 import sys
+import textwrap
+from pathlib import Path
 
 import pytest
 
 import arcgis_mcp.registry as reg
 import arcgis_mcp.worker as wk
-from arcgis_mcp.contracts import WorkerJob
+from arcgis_mcp.contracts import WorkerJob, WorkerResult
 from arcgis_mcp.contracts.base import ToolInput
 from arcgis_mcp.registry import Category, ToolSpec
 from arcgis_mcp.security import PathGuard
@@ -213,3 +220,77 @@ def test_unexpected_error_maps_to_internal(
     _register_one(monkeypatch, spec)
     res = process_frame(_frame("run_tool", {"tool": "t_int", "args": {}}), guard)
     assert res.error is not None and res.error.kind == "internal"
+
+
+# --------------------------------------------------------------------------- #
+# main() stdout discipline — real subprocess, real pipes (issue #23)
+# --------------------------------------------------------------------------- #
+
+# Stands in for ArcPy's native layer: writes to fd 1 and, on Windows, to the
+# Win32 standard output handle — both bypass sys.stdout entirely.
+_NOISY_WORKER = textwrap.dedent(
+    """
+    import os
+    import sys
+
+    import arcgis_mcp.worker as wk
+
+
+    def _noisy_ping(payload, guard):
+        os.write(1, b"WARNING 000635: fd-1 noise\\n")
+        if sys.platform == "win32":
+            import ctypes
+            from ctypes import wintypes
+
+            k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            k32.GetStdHandle.restype = wintypes.HANDLE
+            k32.WriteFile.argtypes = [
+                wintypes.HANDLE,
+                ctypes.c_char_p,
+                wintypes.DWORD,
+                ctypes.POINTER(wintypes.DWORD),
+                ctypes.c_void_p,
+            ]
+            msg = b"WARNING win32-handle noise\\n"
+            written = wintypes.DWORD()
+            k32.WriteFile(k32.GetStdHandle(-11), msg, len(msg), written, None)
+        print("python-level noise")
+        return {"pong": True}
+
+
+    wk._HANDLERS["ping"] = _noisy_ping
+    raise SystemExit(wk.main())
+    """
+)
+
+
+def test_main_keeps_native_stdout_noise_off_the_protocol_stream(tmp_path) -> None:
+    root = tmp_path / "ws"
+    (root / "scratch.gdb").mkdir(parents=True)
+    env = {
+        **os.environ,
+        "ARCPY_PYTHON_PATH": sys.executable,
+        "ARCGIS_MCP_ALLOWED_ROOTS": str(root),
+    }
+    env.pop("ARCGIS_MCP_SCRATCH_GDB", None)
+
+    proc = subprocess.run(
+        [sys.executable, "-u", "-c", _NOISY_WORKER],
+        input=_frame("ping", {}, job_id="fd1") + "\n",
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        env=env,
+        cwd=Path(__file__).resolve().parent.parent,
+        timeout=120,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    frames = [ln for ln in proc.stdout.splitlines() if ln.strip()]
+    assert len(frames) == 1, proc.stdout
+    result = WorkerResult.model_validate_json(frames[0])
+    assert result.ok is True and result.job_id == "fd1"
+    assert "fd-1 noise" in proc.stderr
+    assert "python-level noise" in proc.stderr
+    if sys.platform == "win32":
+        assert "win32-handle noise" in proc.stderr

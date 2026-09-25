@@ -9,6 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from .base import PathRole, ToolInput
 
 EsriGeometry = Literal["POINT", "MULTIPOINT", "POLYLINE", "POLYGON", "MULTIPATCH"]
+#: JSONToFeatures ``geometry_type`` values (the subset GeoJSON can express).
+GeojsonGeometry = Literal["POINT", "MULTIPOINT", "POLYLINE", "POLYGON"]
 EsriFieldType = Literal[
     "TEXT", "SHORT", "LONG", "BIGINTEGER", "FLOAT", "DOUBLE", "DATE", "GUID", "BLOB"
 ]
@@ -416,10 +418,29 @@ class ImportFromGeojsonInput(ToolInput):
             "Set true only when replacing an existing output feature class is intended."
         ),
     )
+    geometry_type: Optional[GeojsonGeometry] = Field(
+        default=None,
+        description=(
+            "Geometry type to import from a .geojson file. Leave unset to detect "
+            "it from the file's features. Set it when the file mixes geometry "
+            "types: only features of this type are imported. Not valid for Esri "
+            "JSON (.json) input, which declares its own geometry type."
+        ),
+    )
     path_fields: ClassVar[dict[str, PathRole]] = {
         "in_json": "read",
         "out_features": "write",
     }
+
+    @model_validator(mode="after")
+    def _geometry_type_needs_geojson(self) -> "ImportFromGeojsonInput":
+        """JSONToFeatures reads geometry_type only for .geojson input."""
+        if self.geometry_type and not self.in_json.lower().endswith(".geojson"):
+            raise ValueError(
+                "geometry_type applies only to .geojson input; ArcPy ignores it "
+                "for Esri JSON (.json) files."
+            )
+        return self
 
 
 class TableToExcelInput(ToolInput):

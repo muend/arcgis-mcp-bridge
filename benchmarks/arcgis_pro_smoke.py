@@ -184,7 +184,9 @@ async def execute(config: BenchmarkConfig) -> dict[str, Any]:
     os.environ["ARCGIS_MCP_ALLOWED_ROOTS"] = str(config.allowed_root)
     os.environ["ARCGIS_MCP_SCRATCH_GDB"] = str(config.scratch_gdb)
     os.environ["ARCGIS_MCP_MAX_WORKERS"] = "1"
-    os.environ.setdefault("ARCGIS_MCP_TOOL_TIMEOUT", "180")
+    # Matches the server default: a cold `import arcpy` under real-time
+    # antivirus has been measured at ~230 s (issue #24), so 180 s was too tight.
+    os.environ.setdefault("ARCGIS_MCP_TOOL_TIMEOUT", "600")
 
     from fastmcp import Client
 

@@ -1,7 +1,7 @@
 {
   "serverInfo": {
     "name": "ArcGIS MCP Bridge",
-    "version": "0.6.3"
+    "version": "0.6.7"
   },
   "authentication": {
     "required": false
@@ -1097,7 +1097,7 @@
     {
       "name": "import_from_geojson",
       "title": "Import From Geojson",
-      "description": "Convert a GeoJSON file into an ArcGIS feature class using ArcPy JSONToFeatures. Use this to bring web, API, or exchange-format vector data into a geodatabase for ArcGIS analysis. Reads an input .geojson file and writes out_features inside PathGuard allowed roots; existing outputs require overwrite=true.",
+      "description": "Convert a GeoJSON file into an ArcGIS feature class using ArcPy JSONToFeatures. Use this to bring web, API, or exchange-format vector data into a geodatabase for ArcGIS analysis. Reads an input .geojson file, detects its point, line, or polygon geometry type (set geometry_type for mixed files), and writes out_features inside PathGuard allowed roots; existing outputs require overwrite=true.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1116,6 +1116,25 @@
             "description": "Set true only when replacing an existing output feature class is intended.",
             "title": "Overwrite",
             "type": "boolean"
+          },
+          "geometry_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "POINT",
+                  "MULTIPOINT",
+                  "POLYLINE",
+                  "POLYGON"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Geometry type to import from a .geojson file. Leave unset to detect it from the file's features. Set it when the file mixes geometry types: only features of this type are imported. Not valid for Esri JSON (.json) input, which declares its own geometry type.",
+            "title": "Geometry Type"
           }
         },
         "required": [

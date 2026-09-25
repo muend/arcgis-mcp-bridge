@@ -180,7 +180,7 @@
     },
     {
       "name": "import_from_geojson",
-      "description": "Convert a GeoJSON file into an ArcGIS feature class using ArcPy JSONToFeatures. Use this to bring web, API, or exchange-format vector data into a geodatabase for ArcGIS analysis. Reads an input .geojson file and writes out_features inside PathGuard allowed roots; existing outputs require overwrite=true."
+      "description": "Convert a GeoJSON file into an ArcGIS feature class using ArcPy JSONToFeatures. Use this to bring web, API, or exchange-format vector data into a geodatabase for ArcGIS analysis. Reads an input .geojson file, detects its point, line, or polygon geometry type (set geometry_type for mixed files), and writes out_features inside PathGuard allowed roots; existing outputs require overwrite=true."
     },
     {
       "name": "rename_dataset",

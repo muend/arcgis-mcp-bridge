@@ -9,6 +9,8 @@ Case-sensitivity guard: function names below mirror exact Esri signatures —
 
 from __future__ import annotations
 
+import json
+from collections import Counter
 from typing import Any
 
 from ..contracts import data_mgmt as c
@@ -152,10 +154,71 @@ def _export_to_geojson(arcpy: Any, inp: c.ExportToGeojsonInput) -> dict:
     return {"output": inp.out_json, "crs": "EPSG:4326"}
 
 
+class GeojsonImportError(ValueError):
+    """The GeoJSON input cannot be imported as one feature class as requested."""
+
+
+#: GeoJSON geometry -> JSONToFeatures ``geometry_type``. JSONToFeatures reads a
+#: .geojson file as POLYGON unless told otherwise, silently dropping every
+#: other geometry, so the type is always passed explicitly (issue #25).
+_GEOJSON_GEOMETRY_TYPES: dict[str, str] = {
+    "Point": "POINT",
+    "MultiPoint": "MULTIPOINT",
+    "LineString": "POLYLINE",
+    "MultiLineString": "POLYLINE",
+    "Polygon": "POLYGON",
+    "MultiPolygon": "POLYGON",
+}
+
+
+def _detect_geojson_geometry_type(path: str) -> str:
+    """Return the single JSONToFeatures geometry type of a GeoJSON file."""
+    try:
+        with open(path, encoding="utf-8-sig") as fh:
+            doc = json.load(fh)
+    except ValueError as exc:  # JSONDecodeError and UnicodeDecodeError
+        raise GeojsonImportError(f"{path} is not valid GeoJSON: {exc}") from exc
+    if not isinstance(doc, dict):
+        raise GeojsonImportError(f"{path} is not a GeoJSON Feature or FeatureCollection.")
+    is_collection = doc.get("type") == "FeatureCollection"
+    features = (doc.get("features") or []) if is_collection else [doc]
+    census = Counter(
+        _GEOJSON_GEOMETRY_TYPES[geom["type"]]
+        for feature in features
+        if isinstance(feature, dict)
+        and isinstance(geom := feature.get("geometry"), dict)
+        and geom.get("type") in _GEOJSON_GEOMETRY_TYPES
+    )
+    if len(census) == 1:
+        return next(iter(census))
+    if not census:
+        raise GeojsonImportError(
+            f"{path} contains no Point, LineString, or Polygon features to import."
+        )
+    found = ", ".join(f"{gtype}={n}" for gtype, n in census.most_common())
+    raise GeojsonImportError(
+        f"{path} mixes geometry types ({found}), but a feature class holds one. "
+        "Set geometry_type to import one type per call."
+    )
+
+
 def _import_from_geojson(arcpy: Any, inp: c.ImportFromGeojsonInput) -> dict:
     arcpy.env.overwriteOutput = inp.overwrite
-    arcpy.conversion.JSONToFeatures(inp.in_json, inp.out_features)
-    return {"output": inp.out_features}
+    if not inp.in_json.lower().endswith(".geojson"):
+        # Esri JSON declares its own geometryType; JSONToFeatures honours it.
+        arcpy.conversion.JSONToFeatures(inp.in_json, inp.out_features)
+        return {"output": inp.out_features}
+
+    geometry_type = inp.geometry_type or _detect_geojson_geometry_type(inp.in_json)
+    arcpy.conversion.JSONToFeatures(inp.in_json, inp.out_features, geometry_type)
+    count = int(arcpy.management.GetCount(inp.out_features)[0])
+    if count == 0:
+        # A silent empty import is the failure mode of issue #25: fail loudly.
+        raise GeojsonImportError(
+            f"JSONToFeatures imported 0 {geometry_type} features from "
+            f"{inp.in_json}; check geometry_type against the file's geometries."
+        )
+    return {"output": inp.out_features, "geometry_type": geometry_type, "count": count}
 
 
 def _table_to_excel(arcpy: Any, inp: c.TableToExcelInput) -> dict:
@@ -401,8 +464,9 @@ _SPECS: tuple[tuple[str, str, type, Any, bool], ...] = (
             "Convert a GeoJSON file into an ArcGIS feature class using ArcPy "
             "JSONToFeatures. Use this to bring web, API, or exchange-format vector "
             "data into a geodatabase for ArcGIS analysis. Reads an input .geojson "
-            "file and writes out_features inside PathGuard allowed roots; existing "
-            "outputs require overwrite=true."
+            "file, detects its point, line, or polygon geometry type (set "
+            "geometry_type for mixed files), and writes out_features inside "
+            "PathGuard allowed roots; existing outputs require overwrite=true."
         ),
         c.ImportFromGeojsonInput,
         _import_from_geojson,
