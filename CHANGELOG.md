@@ -3,6 +3,41 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 Versioning: [Semantic Versioning](https://semver.org/)
 
+## [0.6.7] - 2026-09-25
+
+### Fixed
+
+- `import_from_geojson` no longer returns empty feature classes for `.geojson`
+  files containing points or lines. ArcPy's `JSONToFeatures` defaults such files
+  to `POLYGON` and silently drops other geometries; the worker now detects the
+  geometry type and passes it explicitly, rejects mixed-geometry files with a
+  count per type, and fails loudly when an import yields zero features. A new
+  optional `geometry_type` argument selects one type from a mixed file.
+  ([#25](https://github.com/muend/arcgis-mcp-bridge/issues/25))
+- The worker now redirects file descriptor 1 to stderr before importing ArcPy,
+  so native-layer warnings written directly to fd 1 can no longer reach the
+  protocol stream. The parent selects the response frame by `job_id`
+  correlation rather than line position, so stray output on either side of the
+  frame is skipped instead of fatal.
+  ([#23](https://github.com/muend/arcgis-mcp-bridge/issues/23))
+
+### Changed
+
+- Raised the runtime benchmark's default `ARCGIS_MCP_TOOL_TIMEOUT` from 180 s to
+  the server default of 600 s; a cold `import arcpy` under real-time antivirus
+  was measured at ~230 s.
+  ([#24](https://github.com/muend/arcgis-mcp-bridge/issues/24))
+
+### Documentation
+
+- Added ArcGIS Pro 3.6 / Python 3.13 (community-verified) and 3.7
+  (maintainer-verified) to the compatibility table.
+- Added troubleshooting for slow cold starts and for GeoJSON geometry types.
+- Documented `pytest --basetemp=.pytest_tmp` for Windows machines where the
+  default pytest temp directory is access-denied.
+
+[0.6.7]: https://github.com/muend/arcgis-mcp-bridge/compare/v0.6.6...v0.6.7
+
 ## [0.6.6] - 2026-07-31
 
 ### Fixed

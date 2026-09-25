@@ -71,8 +71,10 @@ class SubprocessBackend:
 
     Trade-off (documented in the Stage 2 blueprint): maximum crash isolation
     and zero state leakage between jobs, at the cost of paying the
-    ``import arcpy`` tax (~10-30 s) on every call. The warm-pool variant
-    will live behind the same Protocol when latency matters.
+    ``import arcpy`` tax on every call — typically ~10-30 s, but several
+    minutes on a cold start when real-time antivirus scans ArcGIS's native
+    DLLs (issue #24). The warm-pool variant will live behind the same
+    Protocol when latency matters.
     """
 
     def __init__(
@@ -190,12 +192,14 @@ class SubprocessBackend:
     # Internals
     # ------------------------------------------------------------------ #
 
-    def _parse_response(self, job_id: str, stdout_b: bytes) -> WorkerResult:
-        """Extract and validate the single response frame from worker stdout.
+    @staticmethod
+    def _parse_response(job_id: str, stdout_b: bytes) -> WorkerResult:
+        """Extract and validate this job's response frame from worker stdout.
 
-        Defense in depth: even though the worker shields its stdout, we only
-        trust the LAST non-empty line — any stray native-library noise that
-        slipped through is ignored rather than fatal.
+        Defense in depth: the worker routes fd 1 to stderr, but if native
+        noise still reaches stdout it is skipped rather than fatal. The frame
+        is identified by correlation, not position: the last line that
+        validates as a WorkerResult for ``job_id`` (issue #23).
         """
         lines = [
             ln
@@ -204,20 +208,31 @@ class SubprocessBackend:
         ]
         if not lines:
             return _failure(job_id, "internal", "Worker produced no response frame.")
-        try:
-            result = WorkerResult.model_validate_json(lines[-1])
-        except (ValidationError, json.JSONDecodeError) as exc:
-            LOG.error("job %s: unparseable worker frame: %s", job_id, exc)
-            return _failure(
-                job_id, "internal", "Worker returned a malformed response frame."
-            )
-        if result.job_id != job_id:
+        foreign_id: str | None = None
+        for line in reversed(lines):
+            try:
+                result = WorkerResult.model_validate_json(line)
+            except (ValidationError, json.JSONDecodeError):
+                continue
+            if result.job_id == job_id:
+                if len(lines) > 1:
+                    LOG.warning(
+                        "job %s: ignored %d stray stdout line(s) around the frame",
+                        job_id,
+                        len(lines) - 1,
+                    )
+                return result
+            foreign_id = foreign_id or result.job_id
+        if foreign_id is not None:
             return _failure(
                 job_id,
                 "internal",
-                f"Correlation mismatch: expected {job_id}, got {result.job_id}.",
+                f"Correlation mismatch: expected {job_id}, got {foreign_id}.",
             )
-        return result
+        LOG.error("job %s: no parseable frame in %d stdout line(s)", job_id, len(lines))
+        return _failure(
+            job_id, "internal", "Worker returned a malformed response frame."
+        )
 
     @staticmethod
     async def _terminate(proc: asyncio.subprocess.Process, job_id: str) -> None:

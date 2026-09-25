@@ -9,10 +9,13 @@ process of the MCP server (see ``execution.SubprocessBackend``). Lifecycle:
 
 stdout discipline
 -----------------
-ArcPy and its native ArcObjects layer occasionally print to the process's
-stdout. To make that physically harmless, ``main()`` immediately rebinds
-``sys.stdout`` to ``sys.stderr`` and keeps a private handle to the real
-stdout, used exactly once — to emit the final response frame.
+ArcPy's native layer writes warnings straight to file descriptor 1, bypassing
+``sys.stdout`` (issue #23). To make that physically harmless, ``main()``
+first duplicates the real stdout into a private descriptor, then points fd 1
+itself at stderr and rebinds ``sys.stdout`` to ``sys.stderr``. Both native and
+Python-level output therefore land on stderr, and the private descriptor is
+used exactly once — to emit the final response frame. arcpy is imported only
+after this, so its native libraries initialise against the redirected fd 1.
 
 Exit-code semantics
 -------------------
@@ -31,10 +34,11 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sys
 import time
 from types import ModuleType
-from typing import Any, Callable, Final, TextIO
+from typing import Any, Callable, Final
 
 from pydantic import ValidationError
 
@@ -82,7 +86,10 @@ def _get_arcpy() -> ModuleType:
     global _arcpy_module
     if _arcpy_module is not None:
         return _arcpy_module
-    LOG.info("Importing arcpy (this can take 10-30 s on a cold start)...")
+    LOG.info(
+        "Importing arcpy (10-30 s on a cold start; several minutes when "
+        "real-time antivirus scans ArcGIS's native DLLs)..."
+    )
     t0 = time.perf_counter()
     try:
         import arcpy  # noqa: PLC0415  — deferred by design, see module docstring
@@ -362,11 +369,35 @@ def _build_guard() -> PathGuard:
     return PathGuard(settings.allowed_roots)
 
 
+def _isolate_protocol_stdout() -> int:
+    """Route fd 1 and ``sys.stdout`` to stderr; return a private stdout fd.
+
+    Redirecting at the descriptor level catches native writes that a
+    ``sys.stdout`` rebind alone cannot. The redirect is deliberately never
+    undone: anything printed later, including at interpreter shutdown, must
+    not reach the protocol stream either.
+    """
+    sys.stdout.flush()
+    protocol_fd = os.dup(1)
+    os.dup2(2, 1)
+    sys.stdout = sys.stderr
+    return protocol_fd
+
+
+def _emit_frame(protocol_fd: int, frame: WorkerResult) -> None:
+    """Write one NDJSON frame to the private protocol descriptor, then close it."""
+    data = memoryview((frame.model_dump_json() + "\n").encode("utf-8"))
+    try:
+        while data:
+            data = data[os.write(protocol_fd, data) :]
+    finally:
+        os.close(protocol_fd)
+
+
 def main() -> int:
     """Read one frame, process, emit one frame. See module docstring."""
     # --- stdout shielding: do this before ANYTHING else can print. ---
-    real_stdout: TextIO = sys.stdout
-    sys.stdout = sys.stderr
+    protocol_fd = _isolate_protocol_stdout()
 
     logging.basicConfig(
         stream=sys.stderr,
@@ -383,13 +414,13 @@ def main() -> int:
         guard = _build_guard()
     except Exception as exc:  # noqa: BLE001 — config failure = controlled frame
         frame = _error_result("unknown", "internal", f"Worker config error: {exc}")
-        print(frame.model_dump_json(), file=real_stdout, flush=True)
+        _emit_frame(protocol_fd, frame)
         return _EXIT_OK
 
     result = process_frame(raw_line, guard)
 
     # The single sanctioned stdout write in the entire worker lifetime:
-    print(result.model_dump_json(), file=real_stdout, flush=True)
+    _emit_frame(protocol_fd, result)
     return _EXIT_OK
 
 

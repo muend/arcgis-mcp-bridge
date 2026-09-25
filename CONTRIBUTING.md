@@ -45,8 +45,14 @@ Run the same checks that CI enforces:
 
 ```bash
 make verify-all   # ruff + mypy strict + security-audit (no arcpy needed)
-python -m pytest  # 81/81 unit tests; arcpy is mocked
+python -m pytest  # full unit suite; arcpy is mocked
 ```
+
+> **Windows note:** if most tests error at setup with `PermissionError: [WinError 5]`, the cause is pytest's default temporary directory (`%LOCALAPPDATA%\Temp\pytest-of-<user>`) being access-denied, not the code. Point pytest at a project-local directory instead (already git-ignored):
+>
+> ```bash
+> python -m pytest --basetemp=.pytest_tmp
+> ```
 
 The automated suite runs without an ArcGIS installation. `tests/conftest.py` injects `MagicMock` proxies for `arcpy` and `arcpy.sa`, so CI can verify contracts, PathGuard behavior, registry invariants, worker error mapping, and configuration validation on hosted runners.
 
