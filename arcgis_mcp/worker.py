@@ -56,13 +56,21 @@ from .contracts import (
     WorkerJob,
     WorkerResult,
 )
-from .registry import apply_path_guard, get as registry_get
+from .registry import (
+    InputNotFoundError,
+    apply_path_guard,
+    get as registry_get,
+    require_inputs_exist,
+)
 from .security import PathGuard, PathSecurityError
 
 LOG: Final[logging.Logger] = logging.getLogger("arcgis_mcp.worker")
 
 _EXIT_OK: Final[int] = 0
 _EXIT_PROTOCOL: Final[int] = 2
+
+#: Cap on exception text echoed in an "internal" error frame.
+_MAX_INTERNAL_DETAIL: Final[int] = 500
 
 
 # --------------------------------------------------------------------------- #
@@ -99,6 +107,11 @@ def _get_arcpy() -> ModuleType:
     LOG.info("arcpy ready in %.1f s", time.perf_counter() - t0)
     _arcpy_module = arcpy
     return _arcpy_module  # via the ModuleType-typed global: no Any escapes
+
+
+def _dataset_exists(arcpy: ModuleType, path: str) -> bool:
+    """Filesystem first (files, folders, .gdb), then arcpy for GDB internals."""
+    return os.path.exists(path) or bool(arcpy.Exists(path))
 
 
 # --------------------------------------------------------------------------- #
@@ -155,6 +168,10 @@ def _handle_list_layers(payload: dict[str, Any], guard: PathGuard) -> dict[str, 
     workspace = str(guard.validate_read(inp.workspace))
 
     arcpy = _get_arcpy()
+    if not _dataset_exists(arcpy, workspace):
+        # Otherwise the List* calls return None and the result is a silently
+        # empty listing for a workspace that is not there.
+        raise InputNotFoundError("workspace", workspace)
     t0 = time.perf_counter()
     arcpy.env.workspace = workspace
 
@@ -216,10 +233,16 @@ def _handle_execute_spatial_tool(
     out_path = str(guard.validate_write(inp.out_features, overwrite=inp.overwrite))
 
     # Clip's secondary geometry input is also a path — guard it too.
+    inputs = {"in_features": in_path}
     if inp.tool is SpatialToolName.CLIP:
-        guard.validate_read(str(inp.parameters["clip_features"]))
+        inputs["clip_features"] = str(
+            guard.validate_read(str(inp.parameters["clip_features"]))
+        )
 
     arcpy = _get_arcpy()
+    for field, path in inputs.items():
+        if not _dataset_exists(arcpy, path):
+            raise InputNotFoundError(field, path)
     arcpy.env.overwriteOutput = inp.overwrite  # mirrors the contract flag exactly
 
     adapter = _TOOL_ADAPTERS[inp.tool]
@@ -280,6 +303,9 @@ def _handle_run_tool(payload: dict[str, Any], guard: PathGuard) -> dict[str, Any
         )
 
     arcpy = _get_arcpy()
+    # Missing inputs fail here, classified, for every catalog tool alike —
+    # not later as whatever the tool's first arcpy call raises (issue #27).
+    require_inputs_exist(inp, lambda path: _dataset_exists(arcpy, path))
     arcpy.env.overwriteOutput = bool(getattr(inp, "overwrite", False))
 
     t0 = time.perf_counter()
@@ -289,6 +315,17 @@ def _handle_run_tool(payload: dict[str, Any], guard: PathGuard) -> dict[str, Any
         raise GeoprocessingFailure(
             message=str(exc).strip() or f"{name} failed.",
             gp_messages=tuple(arcpy.GetMessages().splitlines()),
+            elapsed_seconds=round(time.perf_counter() - t0, 3),
+        ) from exc
+    except PermissionError:
+        raise  # confirm gates raised inside tools stay "security"
+    except OSError as exc:
+        # Describe, ListFields and other non-GP arcpy calls raise OSError,
+        # not ExecuteError, for missing, locked or unreadable data. Keep
+        # ArcPy's message instead of collapsing into "internal".
+        raise GeoprocessingFailure(
+            message=str(exc).strip() or f"{name} failed.",
+            gp_messages=(),
             elapsed_seconds=round(time.perf_counter() - t0, 3),
         ) from exc
     result.setdefault("tool", name)
@@ -337,6 +374,8 @@ def process_frame(raw_line: str, guard: PathGuard) -> WorkerResult:
     try:
         result = handler(dict(job.payload), guard)
         return WorkerResult(job_id=job.job_id, ok=True, result=result)
+    except InputNotFoundError as exc:  # before LookupError: it subclasses it
+        return _error_result(job.job_id, "not_found", str(exc))
     except (ValidationError, ValueError, LookupError) as exc:
         return _error_result(job.job_id, "validation", str(exc))
     except PathSecurityError as exc:
@@ -352,10 +391,14 @@ def process_frame(raw_line: str, guard: PathGuard) -> WorkerResult:
         )
     except Exception as exc:  # noqa: BLE001 — final boundary: nothing escapes
         LOG.exception("job %s: unhandled worker exception", job.job_id)
+        # The caller is usually a model, which cannot read server logs: give
+        # it the exception text; the full traceback stays on stderr.
+        detail = " ".join(str(exc).split())[:_MAX_INTERNAL_DETAIL]
         return _error_result(
             job.job_id,
             "internal",
-            f"Unexpected worker error ({type(exc).__name__}); see server logs.",
+            f"Unexpected worker error ({type(exc).__name__})"
+            + (f": {detail}" if detail else "; see server logs."),
         )
 
 

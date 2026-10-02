@@ -127,8 +127,45 @@ def apply_path_guard(inp: ToolInput, guard: PathGuard) -> ToolInput:
     return inp.model_copy(update=updates) if updates else inp
 
 
+class InputNotFoundError(LookupError):
+    """A read-role input path does not exist (issue #27).
+
+    Distinct from PathSecurityError: the path is allowed, it just is not
+    there — the most common recoverable failure in a chained agent session.
+    """
+
+    def __init__(self, field: str, path: str) -> None:
+        super().__init__(
+            f"Input {field!r} does not exist: {path}. Check the path, or create "
+            "the dataset first if an earlier step was meant to produce it."
+        )
+        self.field = field
+        self.path = path
+
+
+def require_inputs_exist(inp: ToolInput, exists: Callable[[str], bool]) -> None:
+    """Check every ``read`` / ``read_list`` path of ``inp`` with ``exists``.
+
+    PathGuard proves containment only; geodatabase-internal datasets are
+    invisible to the filesystem, so the worker supplies an arcpy-backed
+    ``exists`` and this runs before the tool, turning a missing input into a
+    classified error instead of whatever the tool's first arcpy call raises.
+
+    Raises:
+        InputNotFoundError: naming the first missing field and path.
+    """
+    for field, role in type(inp).path_fields.items():
+        value = getattr(inp, field)
+        if value is None or role == "write":
+            continue
+        for path in value if role == "read_list" else (value,):
+            if not exists(str(path)):
+                raise InputNotFoundError(field, str(path))
+
+
 __all__ = [
     "Category",
+    "InputNotFoundError",
     "ToolSpec",
     "WorkerFn",
     "all_specs",
@@ -136,4 +173,5 @@ __all__ = [
     "count",
     "get",
     "register",
+    "require_inputs_exist",
 ]

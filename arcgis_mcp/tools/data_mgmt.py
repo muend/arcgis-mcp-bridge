@@ -241,7 +241,13 @@ def _feature_to_csv(arcpy: Any, inp: c.FeatureToCsvInput) -> dict:
 
 
 def _get_extent(arcpy: Any, inp: c.GetExtentInput) -> dict:
-    ext = arcpy.Describe(inp.dataset).extent
+    desc = arcpy.Describe(inp.dataset)
+    ext = getattr(desc, "extent", None)
+    if ext is None:  # tables and other non-spatial data have no extent
+        raise ValueError(
+            f"{inp.dataset} has no spatial extent "
+            f"(data type: {getattr(desc, 'dataType', 'unknown')})."
+        )
     return {
         "xmin": ext.XMin,
         "ymin": ext.YMin,
