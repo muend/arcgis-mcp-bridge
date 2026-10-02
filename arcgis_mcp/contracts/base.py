@@ -248,9 +248,10 @@ class WorkerError(BaseModel):
     kind: Literal[
         "validation",  # payload failed Pydantic re-validation in the worker
         "security",  # PathGuard rejection inside the worker
+        "not_found",  # an input dataset/path does not exist (recoverable)
         "geoprocessing",  # arcpy.ExecuteError — tool ran and failed
         "license",  # license checkout failure
-        "internal",  # anything else; details stay in stderr logs
+        "internal",  # anything else; traceback stays in stderr logs
     ]
     message: str
     gp_messages: tuple[str, ...] = Field(default_factory=tuple)

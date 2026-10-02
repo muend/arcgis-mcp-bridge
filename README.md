@@ -140,8 +140,11 @@ them in Layer B. The catalog is exposed alongside three core endpoints:
 tool #101 touches two files — never the runtime loops.
 
 Every failure crossing the process boundary is classified:
-`validation` · `security` · `license` · `geoprocessing` (with the full
-`arcpy.GetMessages()` stack) · `internal`.
+`validation` · `security` · `not_found` (an input path does not exist; the
+message names the field and path) · `license` · `geoprocessing` (with the full
+`arcpy.GetMessages()` stack, or ArcPy's own message for non-geoprocessing
+calls such as `Describe`) · `internal` (exception type and message; the
+traceback stays in the server log).
 
 ---
 
@@ -599,7 +602,7 @@ selection, but it does not prove that ArcPy or an optional Esri extension
 license can be loaded.
 
 Run the ArcPy preflight command above and inspect the structured worker error
-for `license`, `geoprocessing`, or `internal` details.
+for `not_found`, `license`, `geoprocessing`, or `internal` details.
 
 ### The first ArcGIS tool call times out
 

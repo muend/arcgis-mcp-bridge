@@ -3,6 +3,35 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 Versioning: [Semantic Versioning](https://semver.org/)
 
+## [0.6.8] - 2026-10-02
+
+### Fixed
+
+- A missing input dataset is now reported as a classified `not_found` error
+  naming the field and path, for every catalog tool and for `list_layers` and
+  `execute_spatial_tool`, instead of `internal: Unexpected worker error
+  (OSError); see server logs`. The worker checks every read-role path
+  (filesystem first, then `arcpy.Exists` for geodatabase-internal datasets)
+  before the tool runs. `get_extent`, `describe_dataset`, `get_field_info`, and
+  `get_feature_count` now fail the same way.
+  ([#27](https://github.com/muend/arcgis-mcp-bridge/issues/27))
+- `list_layers` on a missing workspace no longer returns a silently empty
+  listing.
+- `OSError` raised by non-geoprocessing ArcPy calls such as `Describe` and
+  `ListFields` is reported as `geoprocessing` with ArcPy's message.
+- `internal` errors now include the exception type and message instead of
+  pointing at server logs that a model cannot read. The traceback is still
+  logged to stderr.
+- `get_extent` on a table, and `simplify_features` / `smooth_features` on
+  non-spatial input, now fail with a clear message instead of an
+  `AttributeError`.
+
+### Changed
+
+- `WorkerError.kind` gains the `not_found` value.
+
+[0.6.8]: https://github.com/muend/arcgis-mcp-bridge/compare/v0.6.7...v0.6.8
+
 ## [0.6.7] - 2026-09-25
 
 ### Fixed

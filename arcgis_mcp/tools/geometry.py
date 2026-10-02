@@ -145,7 +145,8 @@ def _multipart_to_singlepart(arcpy: Any, inp: c.MultipartToSinglepartInput) -> d
 
 
 def _shape_type(arcpy: Any, dataset: str) -> str:
-    return str(arcpy.Describe(dataset).shapeType)
+    # Tables have no shapeType; report that instead of an AttributeError.
+    return str(getattr(arcpy.Describe(dataset), "shapeType", "no geometry"))
 
 
 def _simplify(arcpy: Any, inp: c.SimplifyFeaturesInput) -> dict:
