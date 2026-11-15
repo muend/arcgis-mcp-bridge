@@ -10,6 +10,11 @@
 
 # arcgis-mcp-bridge
 
+**100 declarative geoprocessing tools. Two isolated processes. One security floor.**
+
+A secure, local-first, asynchronous MCP server exposing ArcGIS Pro's ArcPy
+engine to Claude Desktop and other MCP hosts over stdio JSON-RPC.
+
 ## Quick Start
 
 `arcgis-mcp-bridge` requires Windows, a licensed ArcGIS Pro installation, and
@@ -44,17 +49,12 @@ If the installed console command is available on `PATH`,
 
 See **05 — Installation** for the complete setup and configuration.
 
-**100 declarative geoprocessing tools. Two isolated processes. One security floor.**
-
-A secure, local-first, asynchronous MCP server exposing ArcGIS Pro's ArcPy
-engine to Claude Desktop and other MCP hosts over stdio JSON-RPC.
-
 Technical write-up: [Building a Secure MCP Bridge for ArcGIS Pro and ArcPy](https://dev.to/muend/building-a-secure-mcp-bridge-for-arcgis-pro-and-arcpy-511g)
 
 | | |
 |---|---|
 | Catalog | 100 tools · 10 verticals |
-| Tests | 86 unit tests · 86/86 passing · arcpy mocked |
+| Tests | 128 tests · 128/128 passing · arcpy mocked |
 | Real runtime evidence | [Reproducible ArcGIS Pro MCP smoke benchmark](benchmarks/) |
 | Static analysis | Ruff clean · Mypy `strict` clean |
 | Transport | JSON-RPC 2.0 over stdio |
@@ -201,9 +201,10 @@ ArcGIS Pro worker and a dedicated scratch GDB; it is not pooled with the mocked
 unit-test count or presented as validation of all 100 geoprocessing tools.
 
 **Scope, stated plainly:** the automated gate currently consists of
-**86 unit tests** spanning the PathGuard boundary, the Pydantic contracts,
+**128 unit tests** spanning the PathGuard boundary, the Pydantic contracts,
 the generic registry path-guard and registration invariants, the worker's
-error-boundary mapping, and `Settings` environment validation. It exercises
+error-boundary mapping, input-existence checks, GeoJSON import, and `Settings`
+environment validation. It exercises
 the catalog's structural contracts and every security-critical seam — it does
 not claim multi-scenario validation of the 100 geoprocessing tools themselves,
 which execute against a licensed ArcGIS runtime that no CI runner has.
@@ -256,7 +257,7 @@ make lint            # ruff check, mutates nothing
 make type-check      # mypy --strict over arcgis_mcp/
 make security-audit  # live registry inspection: path roles + confirm gates
 make verify-all      # lint + type-check + security-audit, one gate
-python -m pytest     # 86/86
+python -m pytest     # 128/128
 ```
 
 ---

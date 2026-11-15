@@ -3,6 +3,32 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 Versioning: [Semantic Versioning](https://semver.org/)
 
+## [0.6.9] - 2026-11-15
+
+### Security
+
+- Minimum `fastmcp` raised to 3.4.10, the first release with the fix for its
+  open advisory. Upgrading `arcgis-mcp-bridge` now pulls a patched `fastmcp`.
+- `uv.lock` updated to patched releases of transitive dependencies flagged by
+  Dependabot: authlib 1.9.6, joserfc 1.8.0, dnspython 2.9.2, fastmcp and
+  fastmcp-slim 3.4.11, opentelemetry-api 1.45.2. The lockfile governs
+  development and CI; for an existing pip install, run
+  `pip install -U arcgis-mcp-bridge authlib joserfc dnspython` to pick them up.
+  ([#33](https://github.com/muend/arcgis-mcp-bridge/pull/33))
+
+### Fixed
+
+- Test suite: the `arcpy.Exists` fixture works on pytest 9.2, which rejects
+  `setattr` on an attribute a `MagicMock` has not created yet.
+
+### Changed
+
+- README: removed the Smithery badge (the listing returns 404), moved the
+  one-line description above Quick Start, and updated the test count to 128.
+- `manifest.json` and `CITATION.cff` versions brought in line with the release.
+
+[0.6.9]: https://github.com/muend/arcgis-mcp-bridge/compare/v0.6.8...v0.6.9
+
 ## [0.6.8] - 2026-10-02
 
 ### Fixed
