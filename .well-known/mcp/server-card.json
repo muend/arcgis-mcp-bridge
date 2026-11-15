@@ -1,7 +1,7 @@
 {
   "serverInfo": {
     "name": "ArcGIS MCP Bridge",
-    "version": "0.6.8"
+    "version": "0.6.9"
   },
   "authentication": {
     "required": false

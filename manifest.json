@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "arcgis-mcp-bridge",
   "display_name": "ArcGIS MCP Bridge",
-  "version": "0.6.3",
+  "version": "0.6.9",
   "description": "Secure, local-first MCP server exposing ArcGIS Pro's ArcPy engine (100 geoprocessing tools) to Claude over stdio JSON-RPC.",
   "long_description": "arcgis-mcp-bridge exposes 100 declarative ArcPy geoprocessing tools across 10 verticals (data management, geometry, raster, network, spatial statistics, layout, and more) through a two-process architecture: an arcpy-free async MCP host (Layer A) and a subprocess ArcPy isolation worker (Layer B). A PathGuard sandbox constrains every filesystem argument to configured roots, and ten state-mutating tools require an explicit confirm token. Requires a licensed ArcGIS Pro installation on Windows; set ARCPY_PYTHON_PATH to the licensed interpreter (or a cloned arcgis-mcp-env). Call health_check first — it proves the full server->worker pipeline without importing arcpy.",
   "author": {

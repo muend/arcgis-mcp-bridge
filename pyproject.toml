@@ -37,7 +37,7 @@ classifiers = [
 # builds for development and CI, while these ranges keep regular installs away
 # from known breaking-version boundaries.
 dependencies = [
-    "fastmcp>=3.4,<4",
+    "fastmcp>=3.4.10,<4",
     "mcp>=1.27.2,<2",
     "pydantic>=2.5,<3",
 ]
