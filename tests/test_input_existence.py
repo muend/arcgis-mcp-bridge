@@ -59,7 +59,9 @@ def ws(tmp_path: Path) -> tuple[PathGuard, Path]:
 def arcpy_exists(monkeypatch: pytest.MonkeyPatch) -> set[str]:
     """Make the mock arcpy.Exists answer from a set the test controls."""
     known: set[str] = set()
-    monkeypatch.setattr(sys.modules["arcpy"], "Exists", lambda p: p in known)
+    # raising=False: pytest>=9.2 checks the attribute statically, and a MagicMock
+    # only creates "Exists" on first access.
+    monkeypatch.setattr(sys.modules["arcpy"], "Exists", lambda p: p in known, raising=False)
     return known
 
 
