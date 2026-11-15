@@ -23,7 +23,8 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ### Changed
 
-- README: removed the Smithery badge; the listing returns 404.
+- README: removed the Smithery badge (the listing returns 404), moved the
+  one-line description above Quick Start, and updated the test count to 128.
 - `manifest.json` and `CITATION.cff` versions brought in line with the release.
 
 [0.6.9]: https://github.com/muend/arcgis-mcp-bridge/compare/v0.6.8...v0.6.9
